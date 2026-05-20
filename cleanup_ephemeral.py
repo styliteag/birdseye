@@ -21,7 +21,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlparse
 
@@ -76,7 +76,7 @@ def _parse_last_seen(raw: str | None) -> datetime | None:
         head, frac = cleaned.split(".", 1)
         cleaned = f"{head}.{frac[:6]}"
     try:
-        return datetime.fromisoformat(cleaned).replace(tzinfo=timezone.utc)
+        return datetime.fromisoformat(cleaned).replace(tzinfo=UTC)
     except ValueError:
         return None
 
@@ -97,7 +97,7 @@ def _should_delete(peer: Json, cutoff: datetime) -> tuple[bool, str]:
 def main() -> int:
     args = _parse_args()
     client = _client_from_env()
-    cutoff = datetime.now(timezone.utc) - timedelta(minutes=args.min_age_minutes)
+    cutoff = datetime.now(UTC) - timedelta(minutes=args.min_age_minutes)
 
     peers: list[Json] = client.get("peers")
     ephemerals = [p for p in peers if p.get("ephemeral")]
