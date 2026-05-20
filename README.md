@@ -144,7 +144,7 @@ All knobs are env vars. Full list with defaults in
 | `NB_URL` | _(required)_ | NetBird management URL |
 | `NB_API_KEY` | _(required)_ | Read-only API token (forwarder) |
 | `NB_ADMIN_API_KEY` | _(optional)_ | Admin token for `cleanup_ephemeral` cron job |
-| `POLL_INTERVAL` | `30` | Seconds between audit-API polls |
+| `POLL_INTERVAL` | `60` | Seconds between audit-API polls |
 | `MAX_CATCHUP` | `200` | Cap on backlog events forwarded per restart |
 | `OUTAGE_ALERT_MINUTES` | `10` | Mattermost self-alert threshold |
 | `STDOUT_INCLUDE` | `*` | Per-sink fnmatch glob list |

@@ -32,6 +32,12 @@ from netbird.exceptions import (
     NetBirdServerError,
 )
 
+# The Dockerfile flattens this script next to resolver.py at /app/, but during
+# local `uv run docker/event_forwarder.py` resolver.py sits one level up.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from resolver import InitiatorResolver, build_initiator_resolver, resolve_initiator  # noqa: E402
+
 Json = dict[str, Any]
 
 
@@ -90,11 +96,10 @@ def _format_meta(meta: Json | None) -> str:
     return " ".join(f"{k}={v!r}" for k, v in meta.items())
 
 
-def _format_event_text(event: Json) -> str:
+def _format_event_text(event: Json, resolver: InitiatorResolver) -> str:
     ts = _format_timestamp(event.get("timestamp", ""))
     code = f"{event.get('activity_code') or '':<28}"
-    initiator = event.get("initiator_name") or event.get("initiator_email") or "<system>"
-    initiator = f"{initiator[:20]:<20}"
+    initiator = f"{resolve_initiator(event, resolver)[:20]:<20}"
     activity = event.get("activity") or ""
     target = event.get("target_id") or ""
     meta = _format_meta(event.get("meta"))
@@ -106,10 +111,10 @@ def _format_event_text(event: Json) -> str:
     return "  ".join(parts)
 
 
-def _format_event_markdown(event: Json) -> str:
+def _format_event_markdown(event: Json, resolver: InitiatorResolver) -> str:
     ts = _format_timestamp(event.get("timestamp", ""))
     code = event.get("activity_code") or ""
-    initiator = event.get("initiator_name") or event.get("initiator_email") or "_system_"
+    initiator = resolve_initiator(event, resolver)
     activity = event.get("activity") or ""
     target = event.get("target_id") or ""
     meta = _format_meta(event.get("meta"))
@@ -181,10 +186,17 @@ def _log_info(msg: str) -> None:
 
 
 class MattermostSink:
-    def __init__(self, webhook_url: str, username: str, batch_notice: str | None):
+    def __init__(
+        self,
+        webhook_url: str,
+        username: str,
+        batch_notice: str | None,
+        resolver: InitiatorResolver,
+    ):
         self.webhook_url = webhook_url
         self.username = username
         self.batch_notice = batch_notice
+        self.resolver = resolver
 
     @property
     def enabled(self) -> bool:
@@ -214,7 +226,7 @@ class MattermostSink:
     def send_events(self, events: list[Json]) -> None:
         if not events:
             return
-        lines = [_format_event_markdown(e) for e in events]
+        lines = [_format_event_markdown(e, self.resolver) for e in events]
         if self.batch_notice:
             lines.insert(0, self.batch_notice)
             self.batch_notice = None
@@ -227,9 +239,10 @@ class MattermostSink:
 
 
 class EmailSink:
-    def __init__(self, cfg: dict[str, Any]):
+    def __init__(self, cfg: dict[str, Any], resolver: InitiatorResolver):
         self.cfg = cfg
         self.mode = cfg["mode"]
+        self.resolver = resolver
         self.digest_buffer: list[Json] = []
         self.last_flush = time.monotonic()
 
@@ -262,12 +275,12 @@ class EmailSink:
         msg["To"] = ", ".join(cfg["to"])
         if self.mode == "immediate":
             e = events[0]
-            subject = f"[NetBird] {e.get('activity_code')} — {e.get('initiator_email') or e.get('initiator_name') or 'system'}"
+            subject = f"[NetBird] {e.get('activity_code')} — {resolve_initiator(e, self.resolver)}"
         else:
             stamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
             subject = f"[NetBird] {len(events)} events ({stamp} digest)"
         msg["Subject"] = subject
-        body = "\n".join(_format_event_text(e) for e in events) + "\n"
+        body = "\n".join(_format_event_text(e, self.resolver) for e in events) + "\n"
         msg.set_content(body)
 
         try:
@@ -311,6 +324,7 @@ def _run(
     *,
     client: APIClient,
     state: State,
+    resolver: InitiatorResolver,
     poll_interval: float,
     backoff_cap: float,
     stdout_include: list[str],
@@ -384,7 +398,7 @@ def _run(
                 e for e in new_events if _matches(e.get("activity_code") or "", stdout_include)
             ]
             for event in stdout_events:
-                print(_format_event_text(event), flush=True)
+                print(_format_event_text(event, resolver), flush=True)
 
             mm_events = [
                 e for e in new_events if _matches(e.get("activity_code") or "", mattermost_include)
@@ -418,7 +432,7 @@ def _run(
 # --- main ------------------------------------------------------------------
 
 
-def _build_email_sink() -> EmailSink:
+def _build_email_sink(resolver: InitiatorResolver) -> EmailSink:
     mode = _env("EMAIL_MODE", "off").lower()
     if mode not in {"off", "immediate", "digest"}:
         raise SystemExit(f"EMAIL_MODE must be off|immediate|digest, got {mode!r}")
@@ -441,14 +455,14 @@ def _build_email_sink() -> EmailSink:
             raise SystemExit(
                 f"EMAIL_MODE={mode} requires SMTP_{'/'.join(m.upper() for m in missing)}"
             )
-    return EmailSink(cfg)
+    return EmailSink(cfg, resolver)
 
 
 def main() -> int:
     load_dotenv()
 
     state_path = Path(_env("STATE_FILE", "/var/lib/birdseye/state.json"))
-    poll_interval = _env_float("POLL_INTERVAL", 30.0)
+    poll_interval = _env_float("POLL_INTERVAL", 60.0)
     backoff_cap = _env_float("BACKOFF_CAP_SECONDS", 300.0)
     outage_alert_seconds = _env_float("OUTAGE_ALERT_MINUTES", 10.0) * 60
     max_catchup = _env_int("MAX_CATCHUP", 200)
@@ -460,18 +474,26 @@ def main() -> int:
         "policy.*,user.*,setupkey.*,personalaccesstoken.*,account.*",
     )
 
+    client = _client_from_env()
+    try:
+        resolver = build_initiator_resolver(client)
+    except Exception as e:
+        _log_err(f"initiator resolver build failed: {e.__class__.__name__}: {e}")
+        return 2
+
     mattermost = MattermostSink(
         webhook_url=_env("MATTERMOST_WEBHOOK_URL"),
         username=_env("MATTERMOST_USERNAME", "NetBird"),
         batch_notice=None,
+        resolver=resolver,
     )
-    email = _build_email_sink()
+    email = _build_email_sink(resolver)
     state = State(state_path)
-    client = _client_from_env()
 
     return _run(
         client=client,
         state=state,
+        resolver=resolver,
         poll_interval=poll_interval,
         backoff_cap=backoff_cap,
         stdout_include=stdout_include,
