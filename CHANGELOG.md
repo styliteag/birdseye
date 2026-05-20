@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+-
+
+## [0.1.3] - 2026-05-20
+
+### Added
 - Shared `resolver` module mapping NetBird audit-event initiator IDs to
   human-readable labels, used by both `events.py` and the forwarder.
 - `docker/event_forwarder.py` now resolves setup-key and service-user
