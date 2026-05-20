@@ -1,0 +1,4 @@
+SHELL=/bin/bash
+PATH=/app/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+${CRON_CLEANUP_EPHEMERAL} root /app/cron_wrapper.sh /app/.venv/bin/python /app/cleanup_ephemeral.py >> /proc/1/fd/1 2>> /proc/1/fd/2

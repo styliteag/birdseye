@@ -1,0 +1,67 @@
+services:
+  birdseye:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: birdseye:latest
+    container_name: birdseye
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # NetBird API
+      NB_URL: ${NB_URL}
+      NB_API_KEY: ${NB_API_KEY}
+      NB_ADMIN_API_KEY: ${NB_ADMIN_API_KEY:-}
+
+      # Forwarder
+      POLL_INTERVAL: ${POLL_INTERVAL:-30}
+      STATE_FILE: /var/lib/birdseye/state.json
+      MAX_CATCHUP: ${MAX_CATCHUP:-200}
+      OUTAGE_ALERT_MINUTES: ${OUTAGE_ALERT_MINUTES:-10}
+      BACKOFF_CAP_SECONDS: ${BACKOFF_CAP_SECONDS:-300}
+
+      # Per-sink filters (fnmatch globs, comma-separated)
+      STDOUT_INCLUDE: ${STDOUT_INCLUDE:-*}
+      MATTERMOST_INCLUDE: ${MATTERMOST_INCLUDE:-*}
+      EMAIL_INCLUDE: ${EMAIL_INCLUDE:-policy.*,user.*,setupkey.*,personalaccesstoken.*,account.*}
+
+      # Mattermost (empty webhook disables the sink)
+      MATTERMOST_WEBHOOK_URL: ${MATTERMOST_WEBHOOK_URL:-}
+      MATTERMOST_USERNAME: ${MATTERMOST_USERNAME:-NetBird}
+
+      # Email (EMAIL_MODE: off | immediate | digest)
+      EMAIL_MODE: ${EMAIL_MODE:-off}
+      EMAIL_DIGEST_MINUTES: ${EMAIL_DIGEST_MINUTES:-15}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_TO: ${SMTP_TO:-}
+
+      # Cron jobs (empty schedule = disabled)
+      CRON_CLEANUP_EPHEMERAL: ${CRON_CLEANUP_EPHEMERAL:-*/15 * * * *}
+
+      # Timezone for stdout/email/Mattermost timestamps
+      TZ: ${TZ:-UTC}
+    volumes:
+      - birdseye-state:/var/lib/birdseye
+
+    # --- Alternative: join your production NetBird docker network ---
+    # If you prefer to reach NetBird internally instead of via the public
+    # hostname, uncomment the block below, set NB_URL=http://<service>:<port>
+    # in .env, and ensure the external network name matches your prod stack.
+    #
+    # networks:
+    #   - netbird
+
+# networks:
+#   netbird:
+#     external: true
+#     name: netbird_default
+
+volumes:
+  birdseye-state:
+    driver: local
