@@ -17,6 +17,7 @@ import argparse
 import os
 import sys
 import time
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 from urllib.parse import urlparse
@@ -51,7 +52,7 @@ def _parse_args() -> argparse.Namespace:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument(
-        "--interval", type=float, default=5.0, help="polling interval in seconds (default 5)"
+        "--interval", type=float, default=60.0, help="polling interval in seconds (default 60)"
     )
     parser.add_argument(
         "--initial",
@@ -62,6 +63,47 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--once", action="store_true", help="print and exit, do not poll")
     parser.add_argument("--no-color", action="store_true", help="disable ANSI colors")
     return parser.parse_args()
+
+
+# --- initiator resolution --------------------------------------------------
+
+
+@dataclass(frozen=True)
+class _InitiatorResolver:
+    """Maps NetBird initiator IDs to human-readable labels.
+
+    Audit events sometimes carry an `initiator_id` that refers to a setup-key
+    or a service entity — for those, the server returns no `initiator_name`
+    (and logs a WARN). Building this map once at startup lets us display a
+    useful label instead of `<system>`.
+    """
+
+    users_by_id: dict[str, str]
+    keys_by_id: dict[str, str]
+
+
+def _build_initiator_resolver(client: APIClient) -> _InitiatorResolver:
+    users = client.get("users") or []
+    keys = client.get("setup-keys") or []
+    users_by_id = {
+        u["id"]: (u.get("name") or u.get("email") or u["id"]) for u in users if u.get("id")
+    }
+    keys_by_id = {k["id"]: (k.get("name") or k["id"]) for k in keys if k.get("id")}
+    return _InitiatorResolver(users_by_id=users_by_id, keys_by_id=keys_by_id)
+
+
+def _resolve_initiator(event: Json, resolver: _InitiatorResolver) -> str:
+    name = event.get("initiator_name") or event.get("initiator_email")
+    if name:
+        return name
+    iid = (event.get("initiator_id") or "").strip()
+    if not iid or iid == "sys":
+        return "system"
+    if iid in resolver.keys_by_id:
+        return f"setup-key:{resolver.keys_by_id[iid]}"
+    if iid in resolver.users_by_id:
+        return resolver.users_by_id[iid]
+    return f"id:{iid[:12]}"
 
 
 # --- formatting ------------------------------------------------------------
@@ -125,14 +167,14 @@ def _format_meta(meta: Json | None) -> str:
     return " ".join(f"{k}={v!r}" for k, v in meta.items())
 
 
-def _format_event(event: Json, use_color: bool) -> str:
+def _format_event(event: Json, resolver: _InitiatorResolver, use_color: bool) -> str:
     ts = _color(use_color, "dim", _format_timestamp(event.get("timestamp", "")))
 
     code = event.get("activity_code") or ""
     code_color = _CATEGORY_COLOR.get(_category(code), "white")
     code_str = _color(use_color, code_color, f"{code:<28}")
 
-    initiator = event.get("initiator_name") or event.get("initiator_email") or "<system>"
+    initiator = _resolve_initiator(event, resolver)
     initiator_str = _color(use_color, "bold", f"{initiator[:20]:<20}")
 
     activity = event.get("activity") or ""
@@ -162,9 +204,9 @@ def _event_sort_key(event: Json) -> int:
         return 0
 
 
-def _print_events(events: list[Json], use_color: bool) -> None:
+def _print_events(events: list[Json], resolver: _InitiatorResolver, use_color: bool) -> None:
     for event in events:
-        print(_format_event(event, use_color), flush=True)
+        print(_format_event(event, resolver, use_color), flush=True)
 
 
 def _stream(
@@ -175,10 +217,11 @@ def _stream(
     once: bool,
     use_color: bool,
 ) -> int:
+    resolver = _build_initiator_resolver(client)
     events = sorted(client.events.get_audit_events(), key=_event_sort_key)
 
     historic = events[-initial:] if initial > 0 else []
-    _print_events(historic, use_color)
+    _print_events(historic, resolver, use_color)
     last_id = _event_sort_key(events[-1]) if events else 0
 
     if once:
@@ -188,12 +231,10 @@ def _stream(
     while True:
         try:
             time.sleep(interval)
-            fresh = [
-                e for e in client.events.get_audit_events() if _event_sort_key(e) > last_id
-            ]
+            fresh = [e for e in client.events.get_audit_events() if _event_sort_key(e) > last_id]
             if fresh:
                 fresh.sort(key=_event_sort_key)
-                _print_events(fresh, use_color)
+                _print_events(fresh, resolver, use_color)
                 last_id = _event_sort_key(fresh[-1])
         except KeyboardInterrupt:
             print(file=sys.stderr)
