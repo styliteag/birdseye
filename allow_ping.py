@@ -258,10 +258,7 @@ def _do_sync(
             continue
 
         if _skips_ping(original):
-            print(
-                f"  - {zping_name!r} ({zping['id']})  "
-                f"(original marked {PING_IGNORE_MARKER})"
-            )
+            print(f"  - {zping_name!r} ({zping['id']})  (original marked {PING_IGNORE_MARKER})")
             if not dry_run:
                 _assert_prefixed(zping["name"], prefix, "delete")
                 client.policies.delete(zping["id"])
