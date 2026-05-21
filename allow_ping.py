@@ -9,7 +9,11 @@ Default run is a full reconciliation:
   ~ update  ZPING companions when the original drifted (enabled,
             posture checks, sources, destinations, action, direction, rule name)
   - delete  ZPING companions whose original was removed, or whose original
-            now allows ICMP via protocol=all/icmp
+            now allows ICMP via protocol=all/icmp, or whose original is
+            marked PING_IGNORE in its description
+
+Policies whose description contains PING_IGNORE are skipped — no companion
+will be created, and any existing companion will be deleted on sync.
 
 Examples:
     uv run allow_ping.py --dry-run
@@ -31,6 +35,11 @@ from nb_client import client_from_env
 Json = dict[str, Any]
 DEFAULT_PREFIX = "ZPING: "
 SKIP_PROTOCOLS = {"all", "icmp"}
+PING_IGNORE_MARKER = "PING_IGNORE"
+
+
+def _skips_ping(policy: Json) -> bool:
+    return PING_IGNORE_MARKER in (policy.get("description") or "")
 
 
 # --- setup -----------------------------------------------------------------
@@ -187,15 +196,28 @@ def _signature(policy_or_payload: Json) -> tuple:
 
 def _plan_creations(
     originals: list[Json], existing_zping: dict[str, Json], prefix: str
-) -> list[tuple[Json, Json]]:
+) -> tuple[list[tuple[Json, Json]], list[Json]]:
     planned: list[tuple[Json, Json]] = []
+    ignored: list[Json] = []
     for policy in originals:
         if f"{prefix}{policy['name']}" in existing_zping:
+            continue
+        if _skips_ping(policy):
+            ignored.append(policy)
             continue
         payload = _build_ping_payload(policy, prefix)
         if payload is not None:
             planned.append((policy, payload))
-    return planned
+    return planned, ignored
+
+
+def _report_ignored(ignored: list[Json]) -> int:
+    for policy in ignored:
+        print(
+            f"  · {policy['name']!r} ({policy['id']})  "
+            f"(skipped, {PING_IGNORE_MARKER} in description)"
+        )
+    return len(ignored)
 
 
 def _do_create(
@@ -229,6 +251,17 @@ def _do_sync(
 
         if original is None:
             print(f"  - {zping_name!r} ({zping['id']})  (original missing)")
+            if not dry_run:
+                _assert_prefixed(zping["name"], prefix, "delete")
+                client.policies.delete(zping["id"])
+            deleted += 1
+            continue
+
+        if _skips_ping(original):
+            print(
+                f"  - {zping_name!r} ({zping['id']})  "
+                f"(original marked {PING_IGNORE_MARKER})"
+            )
             if not dry_run:
                 _assert_prefixed(zping["name"], prefix, "delete")
                 client.policies.delete(zping["id"])
@@ -286,13 +319,14 @@ def main() -> int:
     originals = [p for p in policies if not p["name"].startswith(args.prefix)]
     originals_by_name = {p["name"]: p for p in originals}
 
-    planned = _plan_creations(originals, existing_zping, args.prefix)
+    planned, ignored = _plan_creations(originals, existing_zping, args.prefix)
 
     print(
         f"{'[dry-run] ' if args.dry_run else ''}"
         f"ZPING sync ({len(originals)} originals, {len(existing_zping)} companions):"
     )
     created = _do_create(client, planned, args.prefix, args.dry_run)
+    ignored_count = _report_ignored(ignored)
     updated, deleted = _do_sync(
         client, existing_zping, originals_by_name, args.prefix, args.dry_run
     )
@@ -300,7 +334,8 @@ def main() -> int:
     unchanged = len(existing_zping) - updated - deleted
     print(
         f"\nSummary: created={created} updated={updated} "
-        f"deleted={deleted} unchanged={unchanged} dry_run={args.dry_run}"
+        f"deleted={deleted} unchanged={unchanged} ignored={ignored_count} "
+        f"dry_run={args.dry_run}"
     )
     return 0
 
