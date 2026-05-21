@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+-
+
+## [0.1.4] - 2026-05-21
+
+### Added
 - `backup_volumes.py` — optional weekly NetBird volume backup. Mount the
   NetBird Docker volumes read-only into the birdseye container, set
   `BACKUP_PATHS`, `BACKUP_ZIP_PASSWORD`, and `CRON_BACKUP_NETBIRD`
