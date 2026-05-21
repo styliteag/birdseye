@@ -15,6 +15,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.message import EmailMessage
 from pathlib import Path
@@ -37,7 +38,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from nb_client import client_from_env  # noqa: E402
 from resolver import InitiatorResolver, build_initiator_resolver, resolve_initiator  # noqa: E402
-from smtp_helpers import default_port, open_smtp, resolve_tls_mode  # noqa: E402
+from smtp_helpers import SmtpConfig, default_port, open_smtp, resolve_tls_mode  # noqa: E402
 
 Json = dict[str, Any]
 
@@ -437,10 +438,23 @@ class MattermostSink:
         self.post(f":rotating_light: **NetBird forwarder**: {text}")
 
 
+@dataclass(frozen=True)
+class EmailSinkConfig:
+    """Config for the audit-event email sink.
+
+    `smtp` is None exactly when `mode == "off"` — that's how the sink
+    represents disabled, instead of carrying empty strings around.
+    """
+
+    mode: str  # "off" | "immediate" | "digest"
+    smtp: SmtpConfig | None
+    digest_seconds: int
+
+
 class EmailSink:
-    def __init__(self, cfg: dict[str, Any], resolver: InitiatorResolver):
+    def __init__(self, cfg: EmailSinkConfig, resolver: InitiatorResolver):
         self.cfg = cfg
-        self.mode = cfg["mode"]
+        self.mode = cfg.mode
         self.resolver = resolver
         self.digest_buffer: list[Json] = []
         self.last_flush = time.monotonic()
@@ -460,7 +474,7 @@ class EmailSink:
     def tick(self) -> None:
         if self.mode != "digest" or not self.digest_buffer:
             return
-        if time.monotonic() - self.last_flush < self.cfg["digest_seconds"]:
+        if time.monotonic() - self.last_flush < self.cfg.digest_seconds:
             return
         events = self.digest_buffer
         if self._send(events):
@@ -468,10 +482,14 @@ class EmailSink:
             self.last_flush = time.monotonic()
 
     def _send(self, events: list[Json]) -> bool:
-        cfg = self.cfg
+        smtp = self.cfg.smtp
+        if smtp is None:
+            # Unreachable when the sink is enabled — _build_email_sink
+            # only constructs smtp=None for mode="off".
+            return False
         msg = EmailMessage()
-        msg["From"] = cfg["from"]
-        msg["To"] = ", ".join(cfg["to"])
+        msg["From"] = smtp.sender
+        msg["To"] = ", ".join(smtp.to)
         if self.mode == "immediate":
             e = events[0]
             subject = f"[NetBird] {e.get('activity_code')} — {resolve_initiator(e, self.resolver)}"
@@ -483,10 +501,10 @@ class EmailSink:
         msg.set_content(body)
 
         try:
-            with open_smtp(cfg["host"], cfg["port"], cfg["tls_mode"], timeout=15) as smtp:
-                if cfg["user"]:
-                    smtp.login(cfg["user"], cfg["password"])
-                smtp.send_message(msg)
+            with open_smtp(smtp.host, smtp.port, smtp.tls_mode, timeout=15) as conn:
+                if smtp.user:
+                    conn.login(smtp.user, smtp.password)
+                conn.send_message(msg)
             return True
         except (smtplib.SMTPException, OSError) as e:
             _log_err(f"smtp send failed: {e.__class__.__name__}")
@@ -651,27 +669,41 @@ def _build_email_sink(resolver: InitiatorResolver) -> EmailSink:
     mode = _env("EMAIL_MODE", "off").lower()
     if mode not in {"off", "immediate", "digest"}:
         raise SystemExit(f"EMAIL_MODE must be off|immediate|digest, got {mode!r}")
+    digest_seconds = _env_int("EMAIL_DIGEST_MINUTES", 15) * 60
+
+    if mode == "off":
+        return EmailSink(
+            EmailSinkConfig(mode=mode, smtp=None, digest_seconds=digest_seconds),
+            resolver,
+        )
+
+    host = _env("SMTP_HOST")
+    sender = _env("SMTP_FROM")
+    to = _env_list("SMTP_TO", "")
+    missing: list[str] = []
+    if not host:
+        missing.append("HOST")
+    if not sender:
+        missing.append("FROM")
+    if not to:
+        missing.append("TO")
+    if missing:
+        raise SystemExit(f"EMAIL_MODE={mode} requires SMTP_{'/'.join(missing)}")
+
     tls_mode = resolve_tls_mode(_env("SMTP_TLS_MODE"), _env("SMTP_STARTTLS"))
-    cfg = {
-        "mode": mode,
-        "host": _env("SMTP_HOST"),
-        "port": _env_int("SMTP_PORT", default_port(tls_mode)),
-        "user": _env("SMTP_USER"),
-        "password": _env("SMTP_PASSWORD"),
-        "from": _env("SMTP_FROM"),
-        "to": _env_list("SMTP_TO", ""),
-        "tls_mode": tls_mode,
-        "digest_seconds": _env_int("EMAIL_DIGEST_MINUTES", 15) * 60,
-    }
-    if mode != "off":
-        missing = [k for k in ("host", "from") if not cfg[k]]
-        if not cfg["to"]:
-            missing.append("to")
-        if missing:
-            raise SystemExit(
-                f"EMAIL_MODE={mode} requires SMTP_{'/'.join(m.upper() for m in missing)}"
-            )
-    return EmailSink(cfg, resolver)
+    smtp = SmtpConfig(
+        host=host,
+        port=_env_int("SMTP_PORT", default_port(tls_mode)),
+        user=_env("SMTP_USER"),
+        password=_env("SMTP_PASSWORD"),
+        sender=sender,
+        to=to,
+        tls_mode=tls_mode,
+    )
+    return EmailSink(
+        EmailSinkConfig(mode=mode, smtp=smtp, digest_seconds=digest_seconds),
+        resolver,
+    )
 
 
 def main() -> int:

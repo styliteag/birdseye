@@ -19,7 +19,7 @@ from email.message import EmailMessage
 from pathlib import Path
 from urllib.parse import urlparse
 
-from smtp_helpers import default_port, open_smtp, resolve_tls_mode
+from smtp_helpers import SmtpConfig, default_port, open_smtp, resolve_tls_mode
 
 DEFAULT_MAX_MB = 20
 # Base64 grows binary payloads by 4/3; with header overhead ~1.4x is a
@@ -70,8 +70,8 @@ def smtp_config(
     recipient_env: str,
     fallback_env: str = "SMTP_TO",
     who: str,
-) -> dict[str, object]:
-    """Build the SMTP config dict, falling back to SMTP_TO when the
+) -> SmtpConfig:
+    """Build the SMTP config, falling back to SMTP_TO when the
     job-specific recipient env var is empty. `who` is the script name
     used in the SystemExit message so the operator knows which job
     is missing config."""
@@ -87,27 +87,21 @@ def smtp_config(
     tls_mode = resolve_tls_mode(env("SMTP_TLS_MODE"), env("SMTP_STARTTLS"))
     # SMTP_PORT wins when set; otherwise the default depends on the mode
     # (587 for STARTTLS, 465 for implicit TLS, 25 for plain).
-    port = env_int("SMTP_PORT", default_port(tls_mode))
-    return {
-        "host": host,
-        "port": port,
-        "user": env("SMTP_USER"),
-        "password": env("SMTP_PASSWORD"),
-        "from": sender,
-        "to": recipients,
-        "tls_mode": tls_mode,
-    }
+    return SmtpConfig(
+        host=host,
+        port=env_int("SMTP_PORT", default_port(tls_mode)),
+        user=env("SMTP_USER"),
+        password=env("SMTP_PASSWORD"),
+        sender=sender,
+        to=recipients,
+        tls_mode=tls_mode,
+    )
 
 
-def send_mail(cfg: dict[str, object], msg: EmailMessage) -> None:
-    host = str(cfg["host"])
-    port = int(cfg["port"])  # type: ignore[arg-type]
-    user = str(cfg["user"])
-    password = str(cfg["password"])
-    tls_mode = str(cfg["tls_mode"])
-    with open_smtp(host, port, tls_mode, timeout=30) as smtp:
-        if user:
-            smtp.login(user, password)
+def send_mail(cfg: SmtpConfig, msg: EmailMessage) -> None:
+    with open_smtp(cfg.host, cfg.port, cfg.tls_mode, timeout=30) as smtp:
+        if cfg.user:
+            smtp.login(cfg.user, cfg.password)
         smtp.send_message(msg)
 
 
@@ -169,14 +163,14 @@ def build_archive(
 
 
 def attachment_mail(
-    cfg: dict[str, object],
+    cfg: SmtpConfig,
     subject: str,
     archive: Path,
     body: str,
 ) -> EmailMessage:
     msg = EmailMessage()
-    msg["From"] = str(cfg["from"])
-    msg["To"] = ", ".join(cfg["to"])  # type: ignore[arg-type]
+    msg["From"] = cfg.sender
+    msg["To"] = ", ".join(cfg.to)
     msg["Subject"] = subject
     msg.set_content(body)
     msg.add_attachment(
@@ -188,10 +182,10 @@ def attachment_mail(
     return msg
 
 
-def error_mail(cfg: dict[str, object], subject: str, what: str, reason: str) -> EmailMessage:
+def error_mail(cfg: SmtpConfig, subject: str, what: str, reason: str) -> EmailMessage:
     msg = EmailMessage()
-    msg["From"] = str(cfg["from"])
-    msg["To"] = ", ".join(cfg["to"])  # type: ignore[arg-type]
+    msg["From"] = cfg.sender
+    msg["To"] = ", ".join(cfg.to)
     msg["Subject"] = f"{subject} — FAILED"
     msg.set_content(f"{what} did not produce a deliverable archive.\n\n{reason}\n")
     return msg

@@ -19,8 +19,29 @@ import smtplib
 import ssl
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 
 VALID_MODES = ("starttls", "tls", "none")
+
+
+@dataclass(frozen=True)
+class SmtpConfig:
+    """Resolved SMTP configuration shared by the forwarder and backup jobs.
+
+    Immutable so it can be passed around and stashed in long-lived sinks
+    without aliasing surprises. `sender` (not `from`) avoids the Python
+    keyword; `to` is a list because most relays accept multiple
+    recipients in one `RCPT TO`.
+    """
+
+    host: str
+    port: int
+    user: str
+    password: str
+    sender: str
+    to: list[str]
+    tls_mode: str
+
 
 DEFAULT_PORT_BY_MODE: dict[str, int] = {
     "starttls": 587,

@@ -177,7 +177,7 @@ def main() -> int:
             return 0
 
         send_mail(cfg, attachment_mail(cfg, subject, archive, _body(archive, paths)))
-        _log(f"sent {archive.name} ({size_mb:.2f} MB) to {', '.join(cfg['to'])}")  # type: ignore[arg-type]
+        _log(f"sent {archive.name} ({size_mb:.2f} MB) to {', '.join(cfg.to)}")
     return 0
 
 

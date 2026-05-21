@@ -54,6 +54,7 @@ from backup_common import (
     smtp_config,
 )
 from nb_client import client_from_env
+from smtp_helpers import SmtpConfig
 
 _log = make_log("export_objects")
 
@@ -87,7 +88,7 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _smtp_config_for_export() -> dict[str, object]:
+def _smtp_config_for_export() -> SmtpConfig:
     # Prefer EXPORT_EMAIL_TO so the operator can route the two mails
     # independently; fall back to BACKUP_EMAIL_TO (same job) and then
     # SMTP_TO (forwarder default).
@@ -247,7 +248,7 @@ def main() -> int:
             return 0
 
         send_mail(cfg, attachment_mail(cfg, subject, archive, _body(archive, written)))
-        _log(f"sent {archive.name} ({size_mb:.2f} MB) to {', '.join(cfg['to'])}")  # type: ignore[arg-type]
+        _log(f"sent {archive.name} ({size_mb:.2f} MB) to {', '.join(cfg.to)}")
     return 0
 
 

@@ -25,6 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   deployments should set `SMTP_TLS_MODE` directly.
 
 ### Changed
+- `SmtpConfig` (frozen dataclass in `smtp_helpers.py`) replaces the
+  ad-hoc `dict[str, object]` that `backup_common.smtp_config()` used
+  to return. The forwarder's email sink gains a parallel
+  `EmailSinkConfig(mode, smtp, digest_seconds)` where `smtp=None`
+  cleanly represents "disabled" instead of carrying empty strings.
+  Six `# type: ignore[arg-type]` markers and five redundant
+  `str(...)` / `int(...)` casts removed across `backup_common`,
+  `backup_volumes`, `export_objects`, and `event_forwarder`.
 - `nb_client.py` — shared NetBird `APIClient` builder. Every operator
   script (events, list_policies, cleanup_ephemeral, allow_ping,
   manage_posture, netbird_overview, setup_keys, export_objects,
