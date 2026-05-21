@@ -35,8 +35,10 @@ services:
       EMAIL_MODE: ${EMAIL_MODE:-off}
       EMAIL_DIGEST_MINUTES: ${EMAIL_DIGEST_MINUTES:-15}
       SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      SMTP_PORT: ${SMTP_PORT:-}
+      # starttls | tls | none — leave empty to honour SMTP_STARTTLS (legacy).
+      SMTP_TLS_MODE: ${SMTP_TLS_MODE:-}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}

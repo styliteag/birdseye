@@ -10,9 +10,7 @@ from __future__ import annotations
 
 import os
 import shutil
-import smtplib
 import socket
-import ssl
 import subprocess
 import sys
 from collections.abc import Callable
@@ -20,6 +18,8 @@ from datetime import UTC, datetime
 from email.message import EmailMessage
 from pathlib import Path
 from urllib.parse import urlparse
+
+from smtp_helpers import default_port, open_smtp, resolve_tls_mode
 
 DEFAULT_MAX_MB = 20
 # Base64 grows binary payloads by 4/3; with header overhead ~1.4x is a
@@ -83,14 +83,19 @@ def smtp_config(
         missing.append(f"{recipient_env}/{fallback_env}")
     if missing:
         raise SystemExit(f"{who} requires " + ", ".join(missing) + " to be set")
+
+    tls_mode = resolve_tls_mode(env("SMTP_TLS_MODE"), env("SMTP_STARTTLS"))
+    # SMTP_PORT wins when set; otherwise the default depends on the mode
+    # (587 for STARTTLS, 465 for implicit TLS, 25 for plain).
+    port = env_int("SMTP_PORT", default_port(tls_mode))
     return {
         "host": host,
-        "port": env_int("SMTP_PORT", 587),
+        "port": port,
         "user": env("SMTP_USER"),
         "password": env("SMTP_PASSWORD"),
         "from": sender,
         "to": recipients,
-        "starttls": env("SMTP_STARTTLS", "true").lower() in {"1", "true", "yes"},
+        "tls_mode": tls_mode,
     }
 
 
@@ -99,10 +104,8 @@ def send_mail(cfg: dict[str, object], msg: EmailMessage) -> None:
     port = int(cfg["port"])  # type: ignore[arg-type]
     user = str(cfg["user"])
     password = str(cfg["password"])
-    starttls = bool(cfg["starttls"])
-    with smtplib.SMTP(host, port, timeout=30) as smtp:
-        if starttls:
-            smtp.starttls(context=ssl.create_default_context())
+    tls_mode = str(cfg["tls_mode"])
+    with open_smtp(host, port, tls_mode, timeout=30) as smtp:
         if user:
             smtp.login(user, password)
         smtp.send_message(msg)

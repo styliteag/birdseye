@@ -8,11 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `SMTP_TLS_MODE=starttls|tls|none` — explicit SMTP transport selector
+  for the forwarder and both backup jobs. `tls` enables implicit TLS
+  (SMTPS) on port 465; `starttls` keeps the previous submission
+  behaviour on port 587; `none` is plain SMTP on port 25.
+  `SMTP_PORT` is now derived from the mode when left empty.
 - `BACKLOG_WARN_THRESHOLD` (default 1000) — one-shot WARN log when a
   single audit-events poll returns more than this many events. The
   NetBird audit endpoint has no cursor parameter, so every poll
   re-downloads the full list; this flags the situation before it
   becomes a measurable latency problem.
+
+### Deprecated
+- `SMTP_STARTTLS=true|false` — still honoured as a fallback when
+  `SMTP_TLS_MODE` is unset (true → starttls, false → none), but new
+  deployments should set `SMTP_TLS_MODE` directly.
 
 ### Changed
 - `nb_client.py` — shared NetBird `APIClient` builder. Every operator

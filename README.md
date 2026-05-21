@@ -158,7 +158,9 @@ All knobs are env vars. Full list with defaults in
 | `MATTERMOST_USERNAME` | `birdseye` | Bot username on the webhook |
 | `EMAIL_MODE` | `off` | `off` \| `immediate` \| `digest` |
 | `EMAIL_DIGEST_MINUTES` | `15` | Digest flush interval |
-| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` / `SMTP_TO` / `SMTP_STARTTLS` | _(empty)_ | SMTP settings (`SMTP_TO` is comma-separated) |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` / `SMTP_TO` | _(empty)_ | SMTP settings (`SMTP_TO` is comma-separated). When `SMTP_PORT` is empty the default is derived from `SMTP_TLS_MODE`: 587 / 465 / 25. |
+| `SMTP_TLS_MODE` | _(legacy: `SMTP_STARTTLS=true` → `starttls`, else `none`)_ | Transport: `starttls` (submission, port 587), `tls` (implicit TLS / SMTPS, port 465), `none` (plain SMTP, port 25). |
+| `SMTP_STARTTLS` | _(empty)_ | **Deprecated** — kept for backward compatibility. Prefer `SMTP_TLS_MODE`. `true` maps to `starttls`, `false` to `none`. |
 | `CRON_CLEANUP_EPHEMERAL` | `*/15 * * * *` | Empty disables the cron job |
 | `CRON_BACKUP_NETBIRD` | _(empty = disabled)_ | Cron schedule for `backup_volumes.py` (typical: `0 3 * * 0`) |
 | `BACKUP_PATHS` | _(empty)_ | Comma-separated paths inside the container to back up |

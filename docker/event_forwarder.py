@@ -11,7 +11,6 @@ import fnmatch
 import json
 import os
 import smtplib
-import ssl
 import sys
 import time
 import urllib.error
@@ -38,6 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from nb_client import client_from_env  # noqa: E402
 from resolver import InitiatorResolver, build_initiator_resolver, resolve_initiator  # noqa: E402
+from smtp_helpers import default_port, open_smtp, resolve_tls_mode  # noqa: E402
 
 Json = dict[str, Any]
 
@@ -483,17 +483,10 @@ class EmailSink:
         msg.set_content(body)
 
         try:
-            if cfg["starttls"]:
-                with smtplib.SMTP(cfg["host"], cfg["port"], timeout=15) as smtp:
-                    smtp.starttls(context=ssl.create_default_context())
-                    if cfg["user"]:
-                        smtp.login(cfg["user"], cfg["password"])
-                    smtp.send_message(msg)
-            else:
-                with smtplib.SMTP(cfg["host"], cfg["port"], timeout=15) as smtp:
-                    if cfg["user"]:
-                        smtp.login(cfg["user"], cfg["password"])
-                    smtp.send_message(msg)
+            with open_smtp(cfg["host"], cfg["port"], cfg["tls_mode"], timeout=15) as smtp:
+                if cfg["user"]:
+                    smtp.login(cfg["user"], cfg["password"])
+                smtp.send_message(msg)
             return True
         except (smtplib.SMTPException, OSError) as e:
             _log_err(f"smtp send failed: {e.__class__.__name__}")
@@ -658,15 +651,16 @@ def _build_email_sink(resolver: InitiatorResolver) -> EmailSink:
     mode = _env("EMAIL_MODE", "off").lower()
     if mode not in {"off", "immediate", "digest"}:
         raise SystemExit(f"EMAIL_MODE must be off|immediate|digest, got {mode!r}")
+    tls_mode = resolve_tls_mode(_env("SMTP_TLS_MODE"), _env("SMTP_STARTTLS"))
     cfg = {
         "mode": mode,
         "host": _env("SMTP_HOST"),
-        "port": _env_int("SMTP_PORT", 587),
+        "port": _env_int("SMTP_PORT", default_port(tls_mode)),
         "user": _env("SMTP_USER"),
         "password": _env("SMTP_PASSWORD"),
         "from": _env("SMTP_FROM"),
         "to": _env_list("SMTP_TO", ""),
-        "starttls": _env("SMTP_STARTTLS", "true").lower() in {"1", "true", "yes"},
+        "tls_mode": tls_mode,
         "digest_seconds": _env_int("EMAIL_DIGEST_MINUTES", 15) * 60,
     }
     if mode != "off":
