@@ -333,6 +333,8 @@ class State:
     def __init__(self, path: Path):
         self.path = path
         self.last_id = 0
+        # Wall-clock seconds since epoch — not monotonic, because the
+        # outage may straddle a process restart and monotonic resets.
         self.outage_started: float | None = None
         self.outage_alerted = False
 
@@ -342,6 +344,9 @@ class State:
         try:
             data = json.loads(self.path.read_text())
             self.last_id = int(data.get("last_id", 0))
+            started = data.get("outage_started")
+            self.outage_started = float(started) if started is not None else None
+            self.outage_alerted = bool(data.get("outage_alerted", False))
             return True
         except (ValueError, OSError) as e:
             _log_err(f"state load failed ({e!r}); starting fresh")
@@ -350,7 +355,15 @@ class State:
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_suffix(".tmp")
-        tmp.write_text(json.dumps({"last_id": self.last_id}))
+        tmp.write_text(
+            json.dumps(
+                {
+                    "last_id": self.last_id,
+                    "outage_started": self.outage_started,
+                    "outage_alerted": self.outage_alerted,
+                }
+            )
+        )
         tmp.replace(self.path)
 
 
@@ -410,10 +423,13 @@ class MattermostSink:
         if not events:
             return
         lines = [_format_event_markdown(e, self.resolver) for e in events]
-        if self.batch_notice:
-            lines.insert(0, self.batch_notice)
+        notice = self.batch_notice
+        if notice:
+            lines.insert(0, notice)
+        if self.post("\n".join(lines)) and notice:
+            # Drop the notice only on a confirmed delivery — otherwise the
+            # next attempt would silently lose the skip warning.
             self.batch_notice = None
-        self.post("\n".join(lines))
 
     def send_alert(self, text: str) -> None:
         if not self.enabled:
@@ -515,11 +531,17 @@ def _run(
     email_include: list[str],
     max_catchup: int,
     outage_alert_seconds: float,
+    backlog_warn_threshold: int,
     mattermost: MattermostSink,
     email: EmailSink,
 ) -> int:
     seeded = state.load()
     current_backoff = poll_interval
+    # The NetBird audit endpoint has no since/cursor parameter, so every
+    # poll re-downloads the full event list (see netbird PyPI SDK,
+    # resources/events.py). Watch for unbounded growth so the operator
+    # can rotate the state file or shorten the server-side retention.
+    backlog_warn_active = False
 
     if not seeded:
         try:
@@ -540,6 +562,19 @@ def _run(
     while True:
         try:
             events = _fetch_events(client)
+            if len(events) > backlog_warn_threshold and not backlog_warn_active:
+                _log_err(
+                    f"audit-events backlog: {len(events)} events returned in one poll "
+                    f"(threshold={backlog_warn_threshold}). The NetBird audit endpoint "
+                    "has no cursor, so each poll re-downloads everything. Consider "
+                    "lowering server-side audit-event retention."
+                )
+                backlog_warn_active = True
+            elif len(events) <= backlog_warn_threshold and backlog_warn_active:
+                _log_info(
+                    f"audit-events backlog back under {backlog_warn_threshold} ({len(events)})"
+                )
+                backlog_warn_active = False
             new_events = [e for e in events if _event_sort_key(e) > state.last_id]
         except KeyboardInterrupt:
             return 0
@@ -548,9 +583,11 @@ def _run(
             if kind == "fatal":
                 _log_err(f"fatal API error ({e.__class__.__name__}): {e} — exiting")
                 return 3
-            now = time.monotonic()
-            if state.outage_started is None:
+            now = time.time()
+            new_outage = state.outage_started is None
+            if new_outage:
                 state.outage_started = now
+                state.save()
             duration = now - state.outage_started
             _log_err(
                 f"poll failed ({e.__class__.__name__}); "
@@ -561,6 +598,7 @@ def _run(
                     f"NetBird API unreachable for {duration / 60:.0f} min ({e.__class__.__name__})"
                 )
                 state.outage_alerted = True
+                state.save()
             try:
                 time.sleep(current_backoff)
             except KeyboardInterrupt:
@@ -570,10 +608,11 @@ def _run(
 
         if state.outage_started is not None:
             if state.outage_alerted and mattermost.enabled:
-                duration = time.monotonic() - state.outage_started
+                duration = time.time() - state.outage_started
                 mattermost.send_alert(f"NetBird API recovered after {duration / 60:.0f} min outage")
             state.outage_started = None
             state.outage_alerted = False
+            state.save()
             current_backoff = poll_interval
 
         if new_events:
@@ -649,6 +688,7 @@ def main() -> int:
     backoff_cap = _env_float("BACKOFF_CAP_SECONDS", 300.0)
     outage_alert_seconds = _env_float("OUTAGE_ALERT_MINUTES", 10.0) * 60
     max_catchup = _env_int("MAX_CATCHUP", 200)
+    backlog_warn_threshold = _env_int("BACKLOG_WARN_THRESHOLD", 1000)
 
     stdout_include = _env_list("STDOUT_INCLUDE", "*")
     mattermost_include = _env_list("MATTERMOST_INCLUDE", "*")
@@ -684,6 +724,7 @@ def main() -> int:
         email_include=email_include,
         max_catchup=max_catchup,
         outage_alert_seconds=outage_alert_seconds,
+        backlog_warn_threshold=backlog_warn_threshold,
         mattermost=mattermost,
         email=email,
     )

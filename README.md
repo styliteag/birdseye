@@ -150,6 +150,7 @@ All knobs are env vars. Full list with defaults in
 | `POLL_INTERVAL` | `60` | Seconds between audit-API polls |
 | `MAX_CATCHUP` | `200` | Cap on backlog events forwarded per restart |
 | `OUTAGE_ALERT_MINUTES` | `10` | Mattermost self-alert threshold |
+| `BACKLOG_WARN_THRESHOLD` | `1000` | Log a one-shot WARN when a single poll returns more than this many audit events. The NetBird audit endpoint has no cursor, so each poll re-downloads everything; growing past the threshold means it's time to lower server-side retention. |
 | `STDOUT_INCLUDE` | `*` | Per-sink fnmatch glob list |
 | `MATTERMOST_INCLUDE` | `*` | |
 | `EMAIL_INCLUDE` | `policy.*,user.*,setupkey.*,personalaccesstoken.*,account.*` | |

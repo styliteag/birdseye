@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `BACKLOG_WARN_THRESHOLD` (default 1000) — one-shot WARN log when a
+  single audit-events poll returns more than this many events. The
+  NetBird audit endpoint has no cursor parameter, so every poll
+  re-downloads the full list; this flags the situation before it
+  becomes a measurable latency problem.
+
 ### Changed
 - `nb_client.py` — shared NetBird `APIClient` builder. Every operator
   script (events, list_policies, cleanup_ephemeral, allow_ping,
@@ -14,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   event_forwarder) used to carry its own copy of `_client_from_env`
   and `_host_from_url`. Picks the right token via `key="user"|"admin"`,
   with an explicit `fallback_to_user` option for `setup_keys.py`.
+- Forwarder outage tracking moved from `time.monotonic()` to
+  `time.time()`. monotonic resets across process restarts, which
+  invalidated the persisted-state work below.
 
 ### Fixed
 - `cleanup_ephemeral.py` now reports `NB_ADMIN_API_KEY must be set`
@@ -22,6 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README `docker exec` examples now invoke `/app/.venv/bin/python`
   instead of `uv run`. `uv` is only present in the builder stage of
   the Docker image, so the previous examples failed at runtime.
+- Forwarder `outage_started` and `outage_alerted` are now persisted
+  to the state file. A container restart during a NetBird API outage
+  previously caused a duplicate `🚨 API unreachable` Mattermost alert
+  on every reboot; the alert now fires at most once per outage.
+- `MattermostSink.send_events` no longer drops `batch_notice` when the
+  POST fails. The skipped-events warning is preserved across retries
+  until Mattermost actually acknowledges it.
 
 ## [0.1.5] - 2026-05-21
 
