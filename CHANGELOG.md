@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+-
+
+## [0.2.0] - 2026-05-21
+
+### Added
 - `EMAIL_STARTUP_TEST=true` and `MATTERMOST_STARTUP_TEST=true` — one-shot
   smoke probes that fire at container start, before the poll loop. The
   email probe sends a self-describing message (host, time, transport,
