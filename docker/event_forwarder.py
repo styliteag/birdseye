@@ -111,18 +111,216 @@ def _format_event_text(event: Json, resolver: InitiatorResolver) -> str:
     return "  ".join(parts)
 
 
+# --- Mattermost-only rendering ---------------------------------------------
+#
+# Each event becomes a single one-liner shaped like:
+#
+#   `2026-05-21 10:58:43`  **Peer login expired**: chuckcybermac.local · `10.48.231.168` · Nuremberg, DE  _Andre Keller_
+#
+# The verb phrase, the subject, and the trailing initiator are all derived
+# per-event-shape so the dump of raw meta keys (created_at, fqdn,
+# location_geo_name_id, …) disappears for the codes we know about.
+
+
+# activity_code → (verb phrase shown in bold, subject shape)
+_ACTIVITY_DESCRIPTORS: dict[str, tuple[str, str]] = {
+    # peer lifecycle
+    "peer.login.expire": ("Peer login expired", "peer"),
+    "peer.login.expired": ("Peer login expired", "peer"),
+    "user.peer.login": ("Peer logged in", "peer"),
+    "peer.delete": ("Peer deleted", "peer"),
+    "peer.rename": ("Peer renamed", "peer"),
+    "peer.ssh.enable": ("Peer SSH enabled", "peer"),
+    "peer.ssh.disable": ("Peer SSH disabled", "peer"),
+    "peer.approve": ("Peer approved", "peer"),
+    "setupkey.peer.add": ("Peer joined via setup key", "peer"),
+    # user
+    "user.create": ("User created", "user"),
+    "user.invite": ("User invited", "user"),
+    "user.delete": ("User deleted", "user"),
+    "user.update": ("User updated", "user"),
+    "user.role.update": ("User role updated", "user"),
+    "user.block": ("User blocked", "user"),
+    "user.unblock": ("User unblocked", "user"),
+    # group
+    "group.add": ("Group created", "group"),
+    "group.update": ("Group updated", "group"),
+    "group.delete": ("Group deleted", "group"),
+    # policy
+    "policy.add": ("Policy created", "named"),
+    "policy.update": ("Policy updated", "named"),
+    "policy.delete": ("Policy deleted", "named"),
+    # setup key
+    "setupkey.add": ("Setup key created", "named"),
+    "setupkey.update": ("Setup key updated", "named"),
+    "setupkey.delete": ("Setup key deleted", "named"),
+    "setupkey.revoke": ("Setup key revoked", "named"),
+    # personal access token
+    "personalaccesstoken.create": ("Personal token created", "named"),
+    "personalaccesstoken.delete": ("Personal token deleted", "named"),
+    # routes & DNS
+    "route.add": ("Route created", "named"),
+    "route.update": ("Route updated", "named"),
+    "route.delete": ("Route deleted", "named"),
+    "nameserver.add": ("Nameserver group created", "named"),
+    "nameserver.update": ("Nameserver group updated", "named"),
+    "nameserver.delete": ("Nameserver group deleted", "named"),
+    # posture checks
+    "posturecheck.add": ("Posture check created", "named"),
+    "posturecheck.update": ("Posture check updated", "named"),
+    "posturecheck.delete": ("Posture check deleted", "named"),
+    # account
+    "account.create": ("Account created", "generic"),
+}
+
+
+# Fallback category labels keyed by the first dotted segment of an unmapped code.
+_CATEGORY_FALLBACK: dict[str, str] = {
+    "peer": "Peer",
+    "user": "User",
+    "group": "Group",
+    "policy": "Policy",
+    "setupkey": "Setup key",
+    "personalaccesstoken": "Personal token",
+    "route": "Route",
+    "nameserver": "Nameserver",
+    "dns": "DNS",
+    "posturecheck": "Posture check",
+    "account": "Account",
+    "service": "Service",
+    "integration": "Integration",
+}
+
+
+# Meta keys to drop from the Mattermost rendering. Stdout/email keep the full
+# meta for log fidelity.
+_MM_DROPPED_META_KEYS = frozenset(
+    {
+        "location_geo_name_id",
+        "location_connection_id",
+        "location_connection_ip",
+        "fqdn",
+        "created_at",
+        "issued",
+    }
+)
+
+
+# Meta keys already used to build the subject for a given shape — skip them
+# in the trailing meta dump so they don't appear twice.
+_CONSUMED_BY_SHAPE: dict[str, frozenset[str]] = {
+    "peer": frozenset({"name", "fqdn", "ip", "location_city_name", "location_country_code"}),
+    "group": frozenset({"name", "new_name", "old_name"}),
+    "user": frozenset({"username", "name", "email"}),
+    "named": frozenset({"name", "new_name"}),
+    "generic": frozenset(),
+}
+
+
+def _humanise_code(code: str) -> str:
+    """`account.setting.peer.login.expiration.update` → `Account setting peer login expiration update`."""
+    return code.replace(".", " ").replace("_", " ").capitalize()
+
+
+def _describe_activity(code: str) -> tuple[str, str]:
+    if code in _ACTIVITY_DESCRIPTORS:
+        return _ACTIVITY_DESCRIPTORS[code]
+    head = code.split(".", 1)[0]
+    # account.* events (settings, billing, …) rarely have a friendly subject
+    # in meta — fall through to "generic" so the opaque target id is hidden.
+    if head == "account":
+        return _humanise_code(code), "generic"
+    if head in _CATEGORY_FALLBACK:
+        return _humanise_code(code), "named"
+    return _humanise_code(code) if code else "Event", "generic"
+
+
+def _format_location(meta: Json) -> str:
+    city = meta.get("location_city_name") or ""
+    country = meta.get("location_country_code") or ""
+    return ", ".join(p for p in (city, country) if p)
+
+
+def _peer_subject(meta: Json, target_id: str) -> str:
+    name = meta.get("name") or meta.get("fqdn") or target_id
+    parts: list[str] = [str(name)]
+    ip = meta.get("ip")
+    if ip:
+        # IPv4 is colon-free, IPv6 is not — backtick-wrap in both cases so the
+        # output stays uniform and IPv6 never hits Mattermost's emoji parser.
+        parts.append(f"`{ip}`")
+    loc = _format_location(meta)
+    if loc:
+        parts.append(loc)
+    return " · ".join(parts)
+
+
+def _group_subject(meta: Json, target_id: str) -> str:
+    new, old = meta.get("new_name"), meta.get("old_name")
+    if new and old and new != old:
+        return f'"{old}" → "{new}"'
+    return str(meta.get("name") or new or old or target_id)
+
+
+def _user_subject(meta: Json, target_id: str) -> str:
+    name = meta.get("username") or meta.get("name") or ""
+    email = meta.get("email") or ""
+    if name and email and name != email:
+        return f"{name} ({email})"
+    return str(name or email or target_id)
+
+
+def _named_subject(meta: Json, target_id: str) -> str:
+    return str(meta.get("name") or meta.get("new_name") or target_id)
+
+
+def _generic_subject(meta: Json, target_id: str) -> str:
+    # The opaque target ID is rarely useful for catch-all events (e.g.
+    # account.setting.*); the verb phrase already carries the meaning.
+    return ""
+
+
+_SUBJECT_FORMATTERS = {
+    "peer": _peer_subject,
+    "group": _group_subject,
+    "user": _user_subject,
+    "named": _named_subject,
+    "generic": _generic_subject,
+}
+
+
+def _format_remaining_meta(meta: Json, consumed: frozenset[str]) -> str:
+    parts = []
+    for k, v in meta.items():
+        if k in consumed or k in _MM_DROPPED_META_KEYS or v in (None, ""):
+            continue
+        s = str(v)
+        # Mattermost parses ':a:', ':100:' and similar as emoji shortcodes,
+        # which mangles IPv6 addresses and ISO timestamps. Wrap any colon-
+        # bearing value in inline code so the emoji parser leaves it alone.
+        rendered = f"`{s}`" if ":" in s else f"'{s}'"
+        parts.append(f"{k}={rendered}")
+    return " ".join(parts)
+
+
 def _format_event_markdown(event: Json, resolver: InitiatorResolver) -> str:
     ts = _format_timestamp(event.get("timestamp", ""))
     code = event.get("activity_code") or ""
     initiator = resolve_initiator(event, resolver)
-    activity = event.get("activity") or ""
-    target = event.get("target_id") or ""
-    meta = _format_meta(event.get("meta"))
-    line = f"`{ts}`  **{code}**  _{initiator}_  {activity}"
-    if target:
-        line += f"  → `{target}`"
-    if meta:
-        line += f"  {meta}"
+    target_id = event.get("target_id") or ""
+    meta = event.get("meta") or {}
+
+    label, shape = _describe_activity(code)
+    subject = _SUBJECT_FORMATTERS[shape](meta, target_id)
+
+    line = f"`{ts}`  **{label}**"
+    if subject:
+        line += f": {subject}"
+    if initiator and initiator != "system":
+        line += f"  _{initiator}_"
+    extra = _format_remaining_meta(meta, _CONSUMED_BY_SHAPE[shape])
+    if extra:
+        line += f"  · {extra}"
     return line
 
 
@@ -483,7 +681,7 @@ def main() -> int:
 
     mattermost = MattermostSink(
         webhook_url=_env("MATTERMOST_WEBHOOK_URL"),
-        username=_env("MATTERMOST_USERNAME", "NetBird"),
+        username=_env("MATTERMOST_USERNAME", "birdseye"),
         batch_notice=None,
         resolver=resolver,
     )

@@ -153,7 +153,7 @@ All knobs are env vars. Full list with defaults in
 | `MATTERMOST_INCLUDE` | `*` | |
 | `EMAIL_INCLUDE` | `policy.*,user.*,setupkey.*,personalaccesstoken.*,account.*` | |
 | `MATTERMOST_WEBHOOK_URL` | _(empty = disabled)_ | Mattermost incoming webhook |
-| `MATTERMOST_USERNAME` | `NetBird` | Bot username on the webhook |
+| `MATTERMOST_USERNAME` | `birdseye` | Bot username on the webhook |
 | `EMAIL_MODE` | `off` | `off` \| `immediate` \| `digest` |
 | `EMAIL_DIGEST_MINUTES` | `15` | Digest flush interval |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` / `SMTP_TO` / `SMTP_STARTTLS` | _(empty)_ | SMTP settings (`SMTP_TO` is comma-separated) |

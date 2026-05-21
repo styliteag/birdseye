@@ -28,7 +28,7 @@ services:
 
       # Mattermost (empty webhook disables the sink)
       MATTERMOST_WEBHOOK_URL: ${MATTERMOST_WEBHOOK_URL:-}
-      MATTERMOST_USERNAME: ${MATTERMOST_USERNAME:-NetBird}
+      MATTERMOST_USERNAME: ${MATTERMOST_USERNAME:-BirdsEye}
 
       # Email (EMAIL_MODE: off | immediate | digest)
       EMAIL_MODE: ${EMAIL_MODE:-off}
