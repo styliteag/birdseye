@@ -43,11 +43,26 @@ services:
 
       # Cron jobs (empty schedule = disabled)
       CRON_CLEANUP_EPHEMERAL: ${CRON_CLEANUP_EPHEMERAL:-*/15 * * * *}
+      CRON_BACKUP_NETBIRD: ${CRON_BACKUP_NETBIRD:-}
+
+      # Volume backup (mount NetBird volumes read-only under /backup, see below)
+      BACKUP_PATHS: ${BACKUP_PATHS:-}
+      BACKUP_ZIP_PASSWORD: ${BACKUP_ZIP_PASSWORD:-}
+      BACKUP_EMAIL_TO: ${BACKUP_EMAIL_TO:-}
+      BACKUP_MAX_ATTACHMENT_MB: ${BACKUP_MAX_ATTACHMENT_MB:-20}
+      BACKUP_LABEL: ${BACKUP_LABEL:-}
 
       # Timezone for stdout/email/Mattermost timestamps
       TZ: ${TZ:-UTC}
     volumes:
       - birdseye-state:/var/lib/birdseye
+      # --- NetBird volume backup mounts (read-only) -----------------------
+      # Uncomment and adjust to match the volume names in your NetBird
+      # docker-compose. Then set BACKUP_PATHS in .env, e.g.
+      #   BACKUP_PATHS=/backup/management,/backup/signal
+      # - netbird_management:/backup/management:ro
+      # - netbird_signal:/backup/signal:ro
+      # - netbird_caddy_data:/backup/caddy:ro
 
     # --- Alternative: join your production NetBird docker network ---
     # If you prefer to reach NetBird internally instead of via the public
@@ -65,3 +80,14 @@ services:
 volumes:
   birdseye-state:
     driver: local
+  # Declare external NetBird volumes here once the mounts above are
+  # uncommented, e.g.:
+  # netbird_management:
+  #   external: true
+  #   name: netbird_management
+  # netbird_signal:
+  #   external: true
+  #   name: netbird_signal
+  # netbird_caddy_data:
+  #   external: true
+  #   name: netbird_caddy_data

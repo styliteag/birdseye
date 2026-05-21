@@ -8,7 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
--
+- `backup_volumes.py` — optional weekly NetBird volume backup. Mount the
+  NetBird Docker volumes read-only into the birdseye container, set
+  `BACKUP_PATHS`, `BACKUP_ZIP_PASSWORD`, and `CRON_BACKUP_NETBIRD`
+  (typical `0 3 * * 0`), and the existing SMTP sink configuration is
+  reused to deliver a password-protected 7z archive (AES256 with
+  encrypted filenames) as a mail attachment. The size limit
+  (`BACKUP_MAX_ATTACHMENT_MB`, default 20) is compared against the
+  base64-encoded SMTP payload (≈1.4× the raw archive), matching what
+  Gmail/Exchange actually count; oversize archives trigger a `— FAILED`
+  notification mail instead so the operator notices before the next
+  run. SQLite hot-backup caveat is documented in the README.
+- Image: `p7zip-full` added to the runtime stage.
+
+### Changed
+- `docker/entrypoint.sh` now renders `/etc/cron.d/netbird` inline
+  instead of via `envsubst` on a template, so `cleanup_ephemeral` and
+  the new `backup_volumes` job enable independently. Removed the
+  unused `docker/crontab.template` and the `gettext-base` apt
+  dependency.
 
 ## [0.1.3] - 2026-05-20
 

@@ -22,7 +22,9 @@ management API and fans matching events out to three sinks:
 
 It also runs `cleanup_ephemeral.py` on a cron schedule (default every
 15 min) to delete stale ephemeral peers that NetBird's built-in cleanup
-ticker sometimes misses.
+ticker sometimes misses, and an optional weekly
+[volume backup](#weekly-volume-backup) that mails a password-protected
+7z archive of mounted NetBird volumes.
 
 Highlights:
 
@@ -156,7 +158,94 @@ All knobs are env vars. Full list with defaults in
 | `EMAIL_DIGEST_MINUTES` | `15` | Digest flush interval |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` / `SMTP_TO` / `SMTP_STARTTLS` | _(empty)_ | SMTP settings (`SMTP_TO` is comma-separated) |
 | `CRON_CLEANUP_EPHEMERAL` | `*/15 * * * *` | Empty disables the cron job |
+| `CRON_BACKUP_NETBIRD` | _(empty = disabled)_ | Cron schedule for `backup_volumes.py` (typical: `0 3 * * 0`) |
+| `BACKUP_PATHS` | _(empty)_ | Comma-separated paths inside the container to back up |
+| `BACKUP_ZIP_PASSWORD` | _(empty)_ | Passphrase for the AES256-encrypted 7z archive |
+| `BACKUP_EMAIL_TO` | _(falls back to `SMTP_TO`)_ | Recipient(s) of the backup mail |
+| `BACKUP_MAX_ATTACHMENT_MB` | `20` | Above this, an error mail is sent in place of the attachment |
+| `BACKUP_LABEL` | _(empty)_ | Free-form tag in the subject and filename (e.g. `prod`) |
 | `TZ` | `UTC` | Timezone for displayed timestamps |
+
+## Weekly volume backup
+
+The container can mail an encrypted snapshot of NetBird's Docker volumes
+on a cron schedule. The volumes are mounted read-only, packed into a 7z
+archive (AES256, filenames included), and sent as an SMTP attachment.
+
+Setup, step by step:
+
+1. **Find the volumes you want to back up** in your NetBird stack:
+
+   ```bash
+   docker volume ls | grep netbird
+   # Typical: netbird_management, netbird_signal, netbird_caddy_data
+   ```
+
+2. **Mount them read-only into birdseye.** Edit
+   `docker/docker-compose.yml`, uncomment the example mounts under
+   `volumes:` on the `birdseye` service, and the matching `external:
+   true` declarations at the bottom. Match the volume names from step 1.
+
+3. **Configure `.env`:**
+
+   ```bash
+   CRON_BACKUP_NETBIRD=0 3 * * 0          # Sunday 03:00
+   BACKUP_PATHS=/backup/management,/backup/signal,/backup/caddy
+   BACKUP_ZIP_PASSWORD=<long random passphrase, store offline>
+   BACKUP_EMAIL_TO=ops@example.com         # or leave empty to reuse SMTP_TO
+   BACKUP_MAX_ATTACHMENT_MB=20
+   BACKUP_LABEL=prod
+   # SMTP_HOST / SMTP_PORT / SMTP_FROM / SMTP_USER / SMTP_PASSWORD
+   # are reused from the existing email sink configuration.
+   ```
+
+4. **Trigger it once manually** to verify before relying on cron:
+
+   ```bash
+   docker compose exec birdseye \
+     /app/.venv/bin/python /app/backup_volumes.py --dry-run
+   docker compose exec birdseye \
+     /app/.venv/bin/python /app/backup_volumes.py
+   ```
+
+5. **Restore** by decrypting the attachment with the same passphrase:
+
+   ```bash
+   7z x netbird-prod-<timestamp>.7z
+   # then stop NetBird, replace the volume contents, restart
+   ```
+
+If the archive exceeds `BACKUP_MAX_ATTACHMENT_MB`, you receive a
+`— FAILED` mail with the actual size instead of a truncated attachment
+— raise the limit, trim `BACKUP_PATHS`, or move to off-host storage.
+The limit is checked against the **base64-encoded** payload (≈1.4× the
+raw archive), which is the size SMTP servers actually count. Gmail caps
+at 25 MB encoded, many corporate relays at 10 MB.
+
+The cron line is only rendered when all of `CRON_BACKUP_NETBIRD`,
+`BACKUP_PATHS`, `BACKUP_ZIP_PASSWORD`, `SMTP_HOST`, `SMTP_FROM`, and
+either `BACKUP_EMAIL_TO` or `SMTP_TO` are set. Missing prerequisites
+print a one-line warning on startup and disable the job.
+
+### Caveat: live SQLite databases
+
+NetBird's management service writes to `store.db` (SQLite) continuously.
+A `7z` of the live file may capture an in-progress transaction and the
+restored database can fail with `database is malformed` or silently lose
+the last few writes. The Sunday-03:00 default minimises but does not
+eliminate the risk.
+
+For a strict hot-consistent backup of the management volume, either:
+
+- **Pause NetBird briefly** before the backup (in a wrapper cron job)
+  and resume afterwards:
+  ```bash
+  docker compose pause management && \
+    docker compose exec birdseye /app/.venv/bin/python /app/backup_volumes.py; \
+    docker compose unpause management
+  ```
+- **Or pre-snapshot the DB** with `sqlite3 ".backup"` and back up the
+  snapshot file (works without stopping NetBird).
 
 ## What's in the image
 
@@ -165,7 +254,8 @@ that were already in this repo. `supervisord` is PID 1, supervising:
 
 - `event_forwarder.py` — long-running audit poller
 - `cron -f` — runs `cleanup_ephemeral.py` on the `CRON_CLEANUP_EPHEMERAL`
-  schedule
+  schedule and, when configured, `backup_volumes.py` on
+  `CRON_BACKUP_NETBIRD`
 
 The one-shot operator scripts are also baked in and can be invoked via
 `docker exec`:

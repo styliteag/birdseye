@@ -27,7 +27,7 @@ RUN apt-get update \
         tini \
         supervisor \
         cron \
-        gettext-base \
+        p7zip-full \
         ca-certificates \
         tzdata \
     && rm -rf /var/lib/apt/lists/*
@@ -55,7 +55,6 @@ COPY *.py /app/
 COPY docker/event_forwarder.py /app/event_forwarder.py
 # Runtime scaffolding.
 COPY docker/supervisord.conf /etc/supervisor/supervisord.conf
-COPY docker/crontab.template /etc/crontab.template
 COPY docker/cron_wrapper.sh /app/cron_wrapper.sh
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh /app/cron_wrapper.sh \
