@@ -204,7 +204,7 @@ def main() -> int:
         _write_manifest(json_dir, summary, env("NB_URL"))
 
         ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-        archive = tmp_path / f"netbird-{label or 'export'}-{ts}.7z"
+        archive = tmp_path / f"netbirdexport-{label or 'export'}-{ts}.7z"
         _log(f"packing {len(written)} object set(s) into {archive.name}")
         result = build_archive([json_dir], password, archive)
         if result.returncode != 0:
