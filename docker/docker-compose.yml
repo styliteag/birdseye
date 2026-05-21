@@ -51,6 +51,10 @@ services:
       BACKUP_EMAIL_TO: ${BACKUP_EMAIL_TO:-}
       BACKUP_MAX_ATTACHMENT_MB: ${BACKUP_MAX_ATTACHMENT_MB:-20}
       BACKUP_LABEL: ${BACKUP_LABEL:-}
+      BACKUP_EXCLUDE: ${BACKUP_EXCLUDE:-}
+      # API export — second mail, runs in the same backup cron when
+      # NB_ADMIN_API_KEY is set. Falls back to BACKUP_EMAIL_TO / SMTP_TO.
+      EXPORT_EMAIL_TO: ${EXPORT_EMAIL_TO:-}
 
       # Timezone for stdout/email/Mattermost timestamps
       TZ: ${TZ:-UTC}

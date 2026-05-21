@@ -56,8 +56,9 @@ COPY docker/event_forwarder.py /app/event_forwarder.py
 # Runtime scaffolding.
 COPY docker/supervisord.conf /etc/supervisor/supervisord.conf
 COPY docker/cron_wrapper.sh /app/cron_wrapper.sh
+COPY docker/run_backup.sh /app/run_backup.sh
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh /app/cron_wrapper.sh \
+RUN chmod +x /usr/local/bin/entrypoint.sh /app/cron_wrapper.sh /app/run_backup.sh \
     && mkdir -p /var/lib/birdseye /var/log/supervisor
 
 VOLUME ["/var/lib/birdseye"]

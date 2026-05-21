@@ -8,7 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
--
+- `export_objects.py` — second mail in the same weekly backup cron. Pulls
+  every NetBird configuration endpoint (peers, groups, policies, users,
+  setup-keys, routes, dns, posture-checks, networks, accounts) via the
+  admin API into one JSON file each plus a `manifest.json`, packs that
+  into a separate AES256-encrypted 7z (reuses `BACKUP_ZIP_PASSWORD`),
+  and sends it as a second SMTP attachment. Endpoint 404s are skipped
+  best-effort and recorded in the manifest. Recipient defaults to
+  `EXPORT_EMAIL_TO`, falling back to `BACKUP_EMAIL_TO` then `SMTP_TO`.
+- `backup_common.py` — shared SMTP / 7z helpers used by both the volume
+  backup and the API export.
+- `docker/run_backup.sh` — wrapper invoked by the backup cron; runs
+  whichever of the two jobs is configured, with independent error
+  handling so a failure in one does not block the other.
+- `BACKUP_EXCLUDE` — comma-separated 7z wildcards stripped from the
+  volume archive (case-insensitive, recursive). Useful for large
+  derived files (GeoIP DBs, caches) that need not be mailed weekly.
+
+### Changed
+- The `CRON_BACKUP_NETBIRD` cron now drives both jobs (volume snapshot
+  + API export) via `run_backup.sh`. Either job can be disabled by
+  leaving its inputs empty (`BACKUP_PATHS` for volumes,
+  `NB_ADMIN_API_KEY` for the API export).
 
 ## [0.1.4] - 2026-05-21
 

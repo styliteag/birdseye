@@ -8,8 +8,8 @@ set -euo pipefail
   for var in \
     NB_URL NB_API_KEY NB_ADMIN_API_KEY TZ \
     SMTP_HOST SMTP_PORT SMTP_STARTTLS SMTP_USER SMTP_PASSWORD SMTP_FROM SMTP_TO \
-    BACKUP_PATHS BACKUP_EMAIL_TO BACKUP_ZIP_PASSWORD \
-    BACKUP_MAX_ATTACHMENT_MB BACKUP_LABEL; do
+    BACKUP_PATHS BACKUP_EMAIL_TO EXPORT_EMAIL_TO BACKUP_ZIP_PASSWORD \
+    BACKUP_MAX_ATTACHMENT_MB BACKUP_LABEL BACKUP_EXCLUDE; do
     if [ -n "${!var:-}" ]; then
       printf '%s=%q\n' "$var" "${!var}"
     fi
@@ -29,15 +29,24 @@ elif [ -n "${CRON_CLEANUP_EPHEMERAL:-}" ]; then
   echo "[entrypoint] CRON_CLEANUP_EPHEMERAL set but NB_ADMIN_API_KEY empty — cleanup cron disabled" >&2
 fi
 
+# The combined backup job (volume snapshot + API export) needs SMTP plus
+# the shared archive password, and at least one source: either BACKUP_PATHS
+# (for the volume snapshot) or NB_ADMIN_API_KEY (for the API export). If
+# both are set, both run sequentially.
+backup_source_ok=0
+if [ -n "${BACKUP_PATHS:-}" ] || [ -n "${NB_ADMIN_API_KEY:-}" ]; then
+  backup_source_ok=1
+fi
 if [ -n "${CRON_BACKUP_NETBIRD:-}" ] \
-   && [ -n "${BACKUP_PATHS:-}" ] \
    && [ -n "${BACKUP_ZIP_PASSWORD:-}" ] \
    && [ -n "${SMTP_HOST:-}" ] \
    && [ -n "${SMTP_FROM:-}" ] \
-   && { [ -n "${BACKUP_EMAIL_TO:-}" ] || [ -n "${SMTP_TO:-}" ]; }; then
+   && { [ -n "${BACKUP_EMAIL_TO:-}" ] || [ -n "${EXPORT_EMAIL_TO:-}" ] || [ -n "${SMTP_TO:-}" ]; } \
+   && [ "$backup_source_ok" -eq 1 ]; then
   backup_enabled=1
 elif [ -n "${CRON_BACKUP_NETBIRD:-}" ]; then
-  echo "[entrypoint] CRON_BACKUP_NETBIRD set but BACKUP_PATHS / BACKUP_ZIP_PASSWORD / SMTP_* incomplete — backup cron disabled" >&2
+  echo "[entrypoint] CRON_BACKUP_NETBIRD set but prerequisites incomplete — backup cron disabled" >&2
+  echo "[entrypoint]   need: BACKUP_ZIP_PASSWORD + SMTP_HOST + SMTP_FROM + (BACKUP_EMAIL_TO|EXPORT_EMAIL_TO|SMTP_TO) + (BACKUP_PATHS|NB_ADMIN_API_KEY)" >&2
 fi
 
 if [ "$cleanup_enabled" -eq 1 ] || [ "$backup_enabled" -eq 1 ]; then
@@ -49,14 +58,19 @@ if [ "$cleanup_enabled" -eq 1 ] || [ "$backup_enabled" -eq 1 ]; then
       echo "${CRON_CLEANUP_EPHEMERAL} root /app/cron_wrapper.sh /app/.venv/bin/python /app/cleanup_ephemeral.py >> /proc/1/fd/1 2>> /proc/1/fd/2"
     fi
     if [ "$backup_enabled" -eq 1 ]; then
-      echo "${CRON_BACKUP_NETBIRD} root /app/cron_wrapper.sh /app/.venv/bin/python /app/backup_volumes.py >> /proc/1/fd/1 2>> /proc/1/fd/2"
+      echo "${CRON_BACKUP_NETBIRD} root /app/cron_wrapper.sh /app/run_backup.sh >> /proc/1/fd/1 2>> /proc/1/fd/2"
     fi
   } > "$CRON_FILE"
   # cron.d files must end with a newline and be 0644 root:root.
   printf '\n' >> "$CRON_FILE"
   chmod 0644 "$CRON_FILE"
   [ "$cleanup_enabled" -eq 1 ] && echo "[entrypoint] cron cleanup: $CRON_CLEANUP_EPHEMERAL" >&2
-  [ "$backup_enabled" -eq 1 ] && echo "[entrypoint] cron backup:  $CRON_BACKUP_NETBIRD" >&2
+  if [ "$backup_enabled" -eq 1 ]; then
+    bits=""
+    [ -n "${BACKUP_PATHS:-}" ] && bits="${bits}volumes "
+    [ -n "${NB_ADMIN_API_KEY:-}" ] && bits="${bits}api-export "
+    echo "[entrypoint] cron backup:  $CRON_BACKUP_NETBIRD (${bits% })" >&2
+  fi
 else
   echo "[entrypoint] no cron jobs enabled" >&2
 fi
