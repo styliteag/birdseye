@@ -26,6 +26,10 @@ services:
       STDOUT_INCLUDE: ${STDOUT_INCLUDE:-*}
       MATTERMOST_INCLUDE: ${MATTERMOST_INCLUDE:-*}
       EMAIL_INCLUDE: ${EMAIL_INCLUDE:-policy.*,user.*,setupkey.*,personalaccesstoken.*,account.*}
+      # Subtracted from the corresponding _INCLUDE set. Empty disables.
+      STDOUT_EXCLUDE: ${STDOUT_EXCLUDE:-}
+      MATTERMOST_EXCLUDE: ${MATTERMOST_EXCLUDE:-}
+      EMAIL_EXCLUDE: ${EMAIL_EXCLUDE:-}
 
       # Mattermost (empty webhook disables the sink)
       MATTERMOST_WEBHOOK_URL: ${MATTERMOST_WEBHOOK_URL:-}

@@ -154,6 +154,9 @@ All knobs are env vars. Full list with defaults in
 | `STDOUT_INCLUDE` | `*` | Per-sink fnmatch glob list |
 | `MATTERMOST_INCLUDE` | `*` | |
 | `EMAIL_INCLUDE` | `policy.*,user.*,setupkey.*,personalaccesstoken.*,account.*` | |
+| `STDOUT_EXCLUDE` | _(empty)_ | Subtracted from `STDOUT_INCLUDE`. Lets you say "everything except X" without listing every other category. Example: `STDOUT_INCLUDE=*` + `STDOUT_EXCLUDE=peer.login.expired` to drop the noisy expiry events from stdout. |
+| `MATTERMOST_EXCLUDE` | _(empty)_ | Same semantics for the Mattermost sink. |
+| `EMAIL_EXCLUDE` | _(empty)_ | Same semantics for the email sink. |
 | `MATTERMOST_WEBHOOK_URL` | _(empty = disabled)_ | Mattermost incoming webhook |
 | `MATTERMOST_USERNAME` | `birdseye` | Bot username on the webhook |
 | `MATTERMOST_STARTUP_TEST` | `false` | When `true`, posts a one-shot smoke message to the webhook at container start so you can verify routing before the first audit event arrives. Failure is logged but does not abort the forwarder. |

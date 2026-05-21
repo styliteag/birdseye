@@ -324,6 +324,16 @@ def _matches(activity_code: str, patterns: list[str]) -> bool:
     return any(fnmatch.fnmatchcase(activity_code, p) for p in patterns)
 
 
+def _allow(activity_code: str, include: list[str], exclude: list[str]) -> bool:
+    """Two-stage filter: an event passes when include matches AND
+    exclude does not. An empty exclude list short-circuits to "no
+    deny" via `_matches`, preserving the historic include-only
+    behaviour."""
+    if not _matches(activity_code, include):
+        return False
+    return not _matches(activity_code, exclude)
+
+
 def _event_sort_key(event: Json) -> int:
     raw = event.get("id", "0")
     try:
@@ -454,7 +464,7 @@ class MattermostSink:
             return False
         stamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
         text = (
-            ":white_check_mark: **birdseye startup test** — "
+            ":white_check_mark: **birdseye startup** — "
             f"posted by `{socket.gethostname()}` at `{stamp}`. "
             "Webhook works."
         )
@@ -519,7 +529,7 @@ class EmailSink:
             return False
         nb_url = os.environ.get("NB_URL", "").strip() or "<unset>"
         body = (
-            "birdseye email sink startup test.\n\n"
+            "birdseye email sink startup.\n\n"
             f"  container host: {socket.gethostname()}\n"
             f"  netbird url:    {nb_url}\n"
             f"  time:           {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
@@ -534,7 +544,7 @@ class EmailSink:
         msg = EmailMessage()
         msg["From"] = smtp.sender
         msg["To"] = ", ".join(smtp.to)
-        msg["Subject"] = f"[NetBird] birdseye startup test ({socket.gethostname()})"
+        msg["Subject"] = f"[NetBird] birdseye startup ({socket.gethostname()})"
         msg.set_content(body)
         try:
             with open_smtp(smtp.host, smtp.port, smtp.tls_mode, timeout=15) as conn:
@@ -606,6 +616,9 @@ def _run(
     stdout_include: list[str],
     mattermost_include: list[str],
     email_include: list[str],
+    stdout_exclude: list[str],
+    mattermost_exclude: list[str],
+    email_exclude: list[str],
     max_catchup: int,
     outage_alert_seconds: float,
     backlog_warn_threshold: int,
@@ -694,13 +707,17 @@ def _run(
 
         if new_events:
             stdout_events = [
-                e for e in new_events if _matches(e.get("activity_code") or "", stdout_include)
+                e
+                for e in new_events
+                if _allow(e.get("activity_code") or "", stdout_include, stdout_exclude)
             ]
             for event in stdout_events:
                 print(_format_event_text(event, resolver), flush=True)
 
             mm_events = [
-                e for e in new_events if _matches(e.get("activity_code") or "", mattermost_include)
+                e
+                for e in new_events
+                if _allow(e.get("activity_code") or "", mattermost_include, mattermost_exclude)
             ]
             if len(mm_events) > max_catchup:
                 skipped = len(mm_events) - max_catchup
@@ -710,7 +727,9 @@ def _run(
                 mattermost.send_events(mm_events)
 
             mail_events = [
-                e for e in new_events if _matches(e.get("activity_code") or "", email_include)
+                e
+                for e in new_events
+                if _allow(e.get("activity_code") or "", email_include, email_exclude)
             ]
             if len(mail_events) > max_catchup:
                 mail_events = mail_events[-max_catchup:]
@@ -788,6 +807,11 @@ def main() -> int:
         "EMAIL_INCLUDE",
         "policy.*,user.*,setupkey.*,personalaccesstoken.*,account.*",
     )
+    # _EXCLUDE patterns are subtracted from their respective _INCLUDE
+    # set. An empty list keeps the historical include-only behaviour.
+    stdout_exclude = _env_list("STDOUT_EXCLUDE", "")
+    mattermost_exclude = _env_list("MATTERMOST_EXCLUDE", "")
+    email_exclude = _env_list("EMAIL_EXCLUDE", "")
 
     client = client_from_env(key="user")
     try:
@@ -822,6 +846,9 @@ def main() -> int:
         stdout_include=stdout_include,
         mattermost_include=mattermost_include,
         email_include=email_include,
+        stdout_exclude=stdout_exclude,
+        mattermost_exclude=mattermost_exclude,
+        email_exclude=email_exclude,
         max_catchup=max_catchup,
         outage_alert_seconds=outage_alert_seconds,
         backlog_warn_threshold=backlog_warn_threshold,

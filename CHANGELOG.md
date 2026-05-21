@@ -8,7 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
--
+- `STDOUT_EXCLUDE`, `MATTERMOST_EXCLUDE`, `EMAIL_EXCLUDE` — per-sink
+  fnmatch deny-list, subtracted from the corresponding `_INCLUDE` set.
+  Lets operators say "everything except X" without enumerating every
+  other category. Empty (default) keeps the historic include-only
+  behaviour. Example: `STDOUT_INCLUDE=*` + `STDOUT_EXCLUDE=peer.login.expired`
+  to silence the most frequent noise on stdout without losing the rest.
+
+### Changed
+- Startup-probe wording simplified ("birdseye startup test" → "birdseye
+  startup") in the email subject/body and the Mattermost message.
 
 ## [0.2.0] - 2026-05-21
 
