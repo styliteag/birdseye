@@ -35,7 +35,6 @@ import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 from netbird import APIClient
@@ -54,6 +53,7 @@ from backup_common import (
     send_mail,
     smtp_config,
 )
+from nb_client import client_from_env
 
 _log = make_log("export_objects")
 
@@ -85,17 +85,6 @@ def _parse_args() -> argparse.Namespace:
         help="fetch + archive locally, do not send mail",
     )
     return parser.parse_args()
-
-
-def _client_from_env() -> APIClient:
-    url = env("NB_URL")
-    token = env("NB_ADMIN_API_KEY")
-    if not url or not token:
-        raise SystemExit("export_objects requires NB_URL and NB_ADMIN_API_KEY")
-    parsed = urlparse(url if "://" in url else f"https://{url}")
-    if not parsed.netloc:
-        raise SystemExit(f"Cannot parse host from NB_URL={url!r}")
-    return APIClient(host=parsed.netloc, api_token=token)
 
 
 def _smtp_config_for_export() -> dict[str, object]:
@@ -192,7 +181,7 @@ def main() -> int:
     label = env("BACKUP_LABEL")
 
     cfg = _smtp_config_for_export()
-    client = _client_from_env()
+    client = client_from_env(key="admin")
     subject = base_subject("NetBird API export", label)
 
     with tempfile.TemporaryDirectory(prefix="netbird-export-") as tmp:

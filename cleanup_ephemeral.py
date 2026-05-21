@@ -19,42 +19,21 @@ Examples:
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from urllib.parse import urlparse
 
-from dotenv import load_dotenv
-from netbird import APIClient
+from nb_client import client_from_env
 
 Json = dict[str, Any]
 DEFAULT_MIN_AGE_MINUTES = 60
-
-
-def _host_from_url(url: str) -> str:
-    parsed = urlparse(url if "://" in url else f"https://{url}")
-    if not parsed.netloc:
-        raise ValueError(f"Cannot parse host from NB_URL={url!r}")
-    return parsed.netloc
-
-
-def _client_from_env() -> APIClient:
-    load_dotenv()
-    url = os.environ.get("NB_URL")
-    token = os.environ.get("NB_ADMIN_API_KEY")
-    if not url or not token:
-        raise SystemExit("NB_URL and NB_API_KEY must be set in .env")
-    return APIClient(host=_host_from_url(url), api_token=token)
 
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument(
-        "--dry-run", action="store_true", help="preview deletions without writing"
-    )
+    parser.add_argument("--dry-run", action="store_true", help="preview deletions without writing")
     parser.add_argument(
         "--min-age-minutes",
         type=int,
@@ -96,7 +75,7 @@ def _should_delete(peer: Json, cutoff: datetime) -> tuple[bool, str]:
 
 def main() -> int:
     args = _parse_args()
-    client = _client_from_env()
+    client = client_from_env(key="admin")
     cutoff = datetime.now(UTC) - timedelta(minutes=args.min_age_minutes)
 
     peers: list[Json] = client.get("peers")
@@ -110,9 +89,7 @@ def main() -> int:
     skipped = 0
     for peer in ephemerals:
         ok, reason = _should_delete(peer, cutoff)
-        label = (
-            f'{peer.get("name") or "?"} (id={peer.get("id")}, ip={peer.get("ip")})'
-        )
+        label = f"{peer.get('name') or '?'} (id={peer.get('id')}, ip={peer.get('ip')})"
         if not ok:
             print(f"  skip   {label}: {reason}")
             skipped += 1
@@ -121,7 +98,7 @@ def main() -> int:
             print(f"  would delete {label}: {reason}")
         else:
             print(f"  delete {label}: {reason}")
-            client.delete(f'peers/{peer["id"]}')
+            client.delete(f"peers/{peer['id']}")
             print(f"  deleted {label}")
         deleted += 1
 

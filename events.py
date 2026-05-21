@@ -14,38 +14,20 @@ Examples:
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 import time
 from datetime import datetime
 from typing import Any
-from urllib.parse import urlparse
 
-from dotenv import load_dotenv
 from netbird import APIClient
 
+from nb_client import client_from_env
 from resolver import InitiatorResolver, build_initiator_resolver, resolve_initiator
 
 Json = dict[str, Any]
 
 
 # --- setup -----------------------------------------------------------------
-
-
-def _host_from_url(url: str) -> str:
-    parsed = urlparse(url if "://" in url else f"https://{url}")
-    if not parsed.netloc:
-        raise ValueError(f"Cannot parse host from NB_URL={url!r}")
-    return parsed.netloc
-
-
-def _client_from_env() -> APIClient:
-    load_dotenv()
-    url = os.environ.get("NB_URL")
-    token = os.environ.get("NB_API_KEY")
-    if not url or not token:
-        raise SystemExit("NB_URL and NB_API_KEY must be set in .env")
-    return APIClient(host=_host_from_url(url), api_token=token)
 
 
 def _parse_args() -> argparse.Namespace:
@@ -205,7 +187,7 @@ def main() -> int:
     args = _parse_args()
     use_color = sys.stdout.isatty() and not args.no_color
     return _stream(
-        _client_from_env(),
+        client_from_env(key="user"),
         interval=args.interval,
         initial=args.initial,
         once=args.once,

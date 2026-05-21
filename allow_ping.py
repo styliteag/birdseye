@@ -21,13 +21,12 @@ Examples:
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from typing import Any
-from urllib.parse import urlparse
 
-from dotenv import load_dotenv
 from netbird import APIClient
+
+from nb_client import client_from_env
 
 Json = dict[str, Any]
 DEFAULT_PREFIX = "ZPING: "
@@ -35,22 +34,6 @@ SKIP_PROTOCOLS = {"all", "icmp"}
 
 
 # --- setup -----------------------------------------------------------------
-
-
-def _host_from_url(url: str) -> str:
-    parsed = urlparse(url if "://" in url else f"https://{url}")
-    if not parsed.netloc:
-        raise ValueError(f"Cannot parse host from NB_URL={url!r}")
-    return parsed.netloc
-
-
-def _client_from_env() -> APIClient:
-    load_dotenv()
-    url = os.environ.get("NB_URL")
-    token = os.environ.get("NB_API_KEY")
-    if not url or not token:
-        raise SystemExit("NB_URL and NB_API_KEY must be set in .env")
-    return APIClient(host=_host_from_url(url), api_token=token)
 
 
 def _parse_args() -> argparse.Namespace:
@@ -94,9 +77,7 @@ def _endpoint_key(rule: Json, side: str) -> tuple:
 
 def _rule_endpoints_for_put(rule: Json) -> Json:
     out: Json = {}
-    source_resource = _resource_for_put(
-        rule.get("sourceResource") or rule.get("source_resource")
-    )
+    source_resource = _resource_for_put(rule.get("sourceResource") or rule.get("source_resource"))
     if source_resource:
         out["sourceResource"] = source_resource
     else:
@@ -167,9 +148,7 @@ def _build_ping_payload(policy: Json, prefix: str) -> Json | None:
 
 def _assert_prefixed(policy_name: str, prefix: str, op: str) -> None:
     if not policy_name.startswith(prefix):
-        raise SystemExit(
-            f"refusing to {op} {policy_name!r}: name does not start with {prefix!r}"
-        )
+        raise SystemExit(f"refusing to {op} {policy_name!r}: name does not start with {prefix!r}")
 
 
 def _rule_summary(rule: Json) -> str:
@@ -245,7 +224,7 @@ def _do_sync(
     """Update drifted ZPING policies and delete orphans. Returns (updated, deleted)."""
     updated = deleted = 0
     for zping_name, zping in existing_zping.items():
-        original_name = zping_name[len(prefix):]
+        original_name = zping_name[len(prefix) :]
         original = originals_by_name.get(original_name)
 
         if original is None:
@@ -277,18 +256,13 @@ def _do_sync(
     return updated, deleted
 
 
-def _do_remove(
-    client: APIClient, policies: list[Json], prefix: str, dry_run: bool
-) -> int:
+def _do_remove(client: APIClient, policies: list[Json], prefix: str, dry_run: bool) -> int:
     targets = [p for p in policies if p["name"].startswith(prefix)]
     if not targets:
         print(f"No policies starting with {prefix!r} found.")
         return 0
 
-    print(
-        f"{'[dry-run] ' if dry_run else ''}"
-        f"Deleting {len(targets)} companion policy(ies):"
-    )
+    print(f"{'[dry-run] ' if dry_run else ''}Deleting {len(targets)} companion policy(ies):")
     for policy in targets:
         print(f"  - {policy['name']!r} ({policy['id']})")
         if not dry_run:
@@ -302,7 +276,7 @@ def _do_remove(
 
 def main() -> int:
     args = _parse_args()
-    client = _client_from_env()
+    client = client_from_env(key="user")
     policies = client.policies.list()
 
     if args.remove_all:

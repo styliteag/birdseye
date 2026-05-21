@@ -20,7 +20,6 @@ from datetime import UTC, datetime
 from email.message import EmailMessage
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 from netbird import APIClient
@@ -32,10 +31,12 @@ from netbird.exceptions import (
     NetBirdServerError,
 )
 
-# The Dockerfile flattens this script next to resolver.py at /app/, but during
-# local `uv run docker/event_forwarder.py` resolver.py sits one level up.
+# The Dockerfile flattens this script next to nb_client.py and resolver.py at
+# /app/, but during local `uv run docker/event_forwarder.py` those modules sit
+# one level up.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from nb_client import client_from_env  # noqa: E402
 from resolver import InitiatorResolver, build_initiator_resolver, resolve_initiator  # noqa: E402
 
 Json = dict[str, Any]
@@ -61,22 +62,6 @@ def _env_float(name: str, default: float) -> float:
 def _env_list(name: str, default: str) -> list[str]:
     raw = _env(name, default)
     return [item.strip() for item in raw.split(",") if item.strip()]
-
-
-def _host_from_url(url: str) -> str:
-    parsed = urlparse(url if "://" in url else f"https://{url}")
-    if not parsed.netloc:
-        raise ValueError(f"Cannot parse host from NB_URL={url!r}")
-    return parsed.netloc
-
-
-def _client_from_env() -> APIClient:
-    load_dotenv()
-    url = _env("NB_URL")
-    token = _env("NB_API_KEY")
-    if not url or not token:
-        raise SystemExit("NB_URL and NB_API_KEY must be set")
-    return APIClient(host=_host_from_url(url), api_token=token)
 
 
 # --- formatting ------------------------------------------------------------
@@ -672,7 +657,7 @@ def main() -> int:
         "policy.*,user.*,setupkey.*,personalaccesstoken.*,account.*",
     )
 
-    client = _client_from_env()
+    client = client_from_env(key="user")
     try:
         resolver = build_initiator_resolver(client)
     except Exception as e:

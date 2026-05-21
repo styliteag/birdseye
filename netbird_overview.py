@@ -3,31 +3,12 @@ detailed per-policy breakdown showing referenced groups and posture checks."""
 
 from __future__ import annotations
 
-import os
 import sys
 from typing import Any
-from urllib.parse import urlparse
 
-from dotenv import load_dotenv
-from netbird import APIClient
+from nb_client import client_from_env
 
 Json = dict[str, Any]
-
-
-def _host_from_url(url: str) -> str:
-    parsed = urlparse(url if "://" in url else f"https://{url}")
-    if not parsed.netloc:
-        raise ValueError(f"Cannot parse host from NB_URL={url!r}")
-    return parsed.netloc
-
-
-def _client_from_env() -> APIClient:
-    load_dotenv()
-    url = os.environ.get("NB_URL")
-    token = os.environ.get("NB_API_KEY")
-    if not url or not token:
-        raise SystemExit("NB_URL and NB_API_KEY must be set in .env")
-    return APIClient(host=_host_from_url(url), api_token=token)
 
 
 def _section(title: str) -> None:
@@ -108,7 +89,7 @@ def _print_policy_detail(policy: Json, posture_by_id: dict[str, Json]) -> None:
 
 
 def main() -> int:
-    client = _client_from_env()
+    client = client_from_env(key="user")
 
     policies = client.policies.list()
     groups = client.groups.list()

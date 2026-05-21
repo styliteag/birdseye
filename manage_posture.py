@@ -11,36 +11,21 @@ Policies whose description contains POSTURE_IGNORE are skipped when adding postu
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from typing import Any
-from urllib.parse import urlparse
 
-from dotenv import load_dotenv
 from netbird import APIClient
+
+from nb_client import client_from_env
 
 Json = dict[str, Any]
 POSTURE_IGNORE_MARKER = "POSTURE_IGNORE"
 
 
-def _host_from_url(url: str) -> str:
-    parsed = urlparse(url if "://" in url else f"https://{url}")
-    if not parsed.netloc:
-        raise ValueError(f"Cannot parse host from NB_URL={url!r}")
-    return parsed.netloc
-
-
-def _client_from_env() -> APIClient:
-    load_dotenv()
-    url = os.environ.get("NB_URL")
-    token = os.environ.get("NB_API_KEY")
-    if not url or not token:
-        raise SystemExit("NB_URL and NB_API_KEY must be set in .env")
-    return APIClient(host=_host_from_url(url), api_token=token)
-
-
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
 
     target = parser.add_mutually_exclusive_group(required=True)
     target.add_argument("--all", action="store_true", help="apply to every policy")
@@ -116,9 +101,7 @@ def _rule_for_put(rule: Json) -> Json:
     if rule.get("id"):
         out["id"] = rule["id"]
 
-    source_resource = _resource_for_put(
-        rule.get("sourceResource") or rule.get("source_resource")
-    )
+    source_resource = _resource_for_put(rule.get("sourceResource") or rule.get("source_resource"))
     if source_resource:
         out["sourceResource"] = source_resource
     else:
@@ -180,7 +163,7 @@ def main() -> int:
     posture_name = args.add_posture if add else args.remove_posture
     verb = "add" if add else "remove"
 
-    client = _client_from_env()
+    client = client_from_env(key="user")
     policies = client.policies.list()
     posture_checks = client.posture_checks.list()
 
@@ -209,10 +192,7 @@ def main() -> int:
         _apply_change(client, policy, new_list, dry_run=args.dry_run)
         changed += 1
 
-    print(
-        f"\nDone. changed={changed} skipped={skipped} "
-        f"ignored={ignored} dry_run={args.dry_run}"
-    )
+    print(f"\nDone. changed={changed} skipped={skipped} ignored={ignored} dry_run={args.dry_run}")
     return 0
 
 

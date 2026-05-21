@@ -24,31 +24,14 @@ Examples:
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from typing import Any
-from urllib.parse import urlparse
 
-from dotenv import load_dotenv
 from netbird import APIClient
 
+from nb_client import client_from_env
+
 Json = dict[str, Any]
-
-
-def _host_from_url(url: str) -> str:
-    parsed = urlparse(url if "://" in url else f"https://{url}")
-    if not parsed.netloc:
-        raise ValueError(f"Cannot parse host from NB_URL={url!r}")
-    return parsed.netloc
-
-
-def _client_from_env() -> APIClient:
-    load_dotenv()
-    url = os.environ.get("NB_URL")
-    token = os.environ.get("NB_ADMIN_API_KEY") or os.environ.get("NB_API_KEY")
-    if not url or not token:
-        raise SystemExit("NB_URL and NB_ADMIN_API_KEY (or NB_API_KEY) must be set in .env")
-    return APIClient(host=_host_from_url(url), api_token=token)
 
 
 def _parse_args() -> argparse.Namespace:
@@ -59,16 +42,27 @@ def _parse_args() -> argparse.Namespace:
     target.add_argument("--key", help="setup key name to target")
     target.add_argument("--all-keys", action="store_true", help="target every setup key")
 
-    p.add_argument("--add-group", action="append", default=[], metavar="NAME",
-                   help="group name to add (repeatable)")
-    p.add_argument("--remove-group", action="append", default=[], metavar="NAME",
-                   help="group name to remove (repeatable)")
-    p.add_argument("--remove-all-groups", action="store_true",
-                   help="clear auto_groups")
-    p.add_argument("--set-groups", metavar="G1,G2",
-                   help="replace auto_groups with the given comma-separated names")
-    p.add_argument("--dry-run", action="store_true",
-                   help="preview changes without writing")
+    p.add_argument(
+        "--add-group",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="group name to add (repeatable)",
+    )
+    p.add_argument(
+        "--remove-group",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="group name to remove (repeatable)",
+    )
+    p.add_argument("--remove-all-groups", action="store_true", help="clear auto_groups")
+    p.add_argument(
+        "--set-groups",
+        metavar="G1,G2",
+        help="replace auto_groups with the given comma-separated names",
+    )
+    p.add_argument("--dry-run", action="store_true", help="preview changes without writing")
     return p.parse_args()
 
 
@@ -102,9 +96,7 @@ def _select_keys(all_keys: list[Json], target_name: str | None, all_flag: bool) 
     return matches
 
 
-def _new_auto_groups(
-    key: Json, args: argparse.Namespace, name_to_id: dict[str, str]
-) -> list[str]:
+def _new_auto_groups(key: Json, args: argparse.Namespace, name_to_id: dict[str, str]) -> list[str]:
     current: list[str] = list(key.get("auto_groups") or [])
 
     if args.remove_all_groups:
@@ -147,20 +139,21 @@ def _print_key(key: Json, id_to_name: dict[str, str]) -> None:
 
 def _has_mutation(args: argparse.Namespace) -> bool:
     return bool(
-        args.add_group or args.remove_group or args.remove_all_groups
-        or args.set_groups is not None
+        args.add_group or args.remove_group or args.remove_all_groups or args.set_groups is not None
     )
 
 
 def main() -> int:
     args = _parse_args()
-    client = _client_from_env()
+    client = client_from_env(key="admin", fallback_to_user=True)
     name_to_id, id_to_name = _index_groups(client)
     keys = client.get("setup-keys")
 
     if not _has_mutation(args):
         # read-only listing
-        targets = _select_keys(keys, args.key, args.all_keys) if (args.key or args.all_keys) else keys
+        targets = (
+            _select_keys(keys, args.key, args.all_keys) if (args.key or args.all_keys) else keys
+        )
         print(f"setup keys ({len(targets)}):")
         for k in targets:
             _print_key(k, id_to_name)
@@ -175,8 +168,10 @@ def main() -> int:
         before_ids = list(key.get("auto_groups") or [])
         after_ids = _new_auto_groups(key, args, name_to_id)
         if before_ids == after_ids:
-            print(f"  skip   {key['name']}: auto_groups unchanged "
-                  f"({_format_groups(before_ids, id_to_name)})")
+            print(
+                f"  skip   {key['name']}: auto_groups unchanged "
+                f"({_format_groups(before_ids, id_to_name)})"
+            )
             continue
         before = _format_groups(before_ids, id_to_name)
         after = _format_groups(after_ids, id_to_name)
