@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+-
+
+## [0.1.5] - 2026-05-21
+
+### Added
 - `export_objects.py` — second mail in the same weekly backup cron. Pulls
   every NetBird configuration endpoint (peers, groups, policies, users,
   setup-keys, routes, dns, posture-checks, networks, accounts) via the
