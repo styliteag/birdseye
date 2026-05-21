@@ -291,13 +291,17 @@ The one-shot operator scripts are also baked in and can be invoked via
 `docker exec`:
 
 ```bash
-docker exec birdseye uv run /app/list_policies.py
-docker exec birdseye uv run /app/netbird_overview.py
-docker exec birdseye uv run /app/cleanup_ephemeral.py --dry-run
-docker exec birdseye uv run /app/allow_ping.py --help
-docker exec birdseye uv run /app/manage_posture.py --help
-docker exec birdseye uv run /app/setup_keys.py --help
+docker exec birdseye /app/.venv/bin/python /app/list_policies.py
+docker exec birdseye /app/.venv/bin/python /app/netbird_overview.py
+docker exec birdseye /app/.venv/bin/python /app/cleanup_ephemeral.py --dry-run
+docker exec birdseye /app/.venv/bin/python /app/allow_ping.py --help
+docker exec birdseye /app/.venv/bin/python /app/manage_posture.py --help
+docker exec birdseye /app/.venv/bin/python /app/setup_keys.py --help
 ```
+
+> `uv` lives only in the builder stage, so inside the running image use
+> the venv interpreter directly. The same pattern applies to the
+> backup scripts shown earlier in this README.
 
 ## Local development (without Docker)
 

@@ -7,8 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
--
+### Changed
+- `nb_client.py` — shared NetBird `APIClient` builder. Every operator
+  script (events, list_policies, cleanup_ephemeral, allow_ping,
+  manage_posture, netbird_overview, setup_keys, export_objects,
+  event_forwarder) used to carry its own copy of `_client_from_env`
+  and `_host_from_url`. Picks the right token via `key="user"|"admin"`,
+  with an explicit `fallback_to_user` option for `setup_keys.py`.
+
+### Fixed
+- `cleanup_ephemeral.py` now reports `NB_ADMIN_API_KEY must be set`
+  when the admin token is missing. Previously it read
+  `NB_ADMIN_API_KEY` but the error message named `NB_API_KEY`.
+- README `docker exec` examples now invoke `/app/.venv/bin/python`
+  instead of `uv run`. `uv` is only present in the builder stage of
+  the Docker image, so the previous examples failed at runtime.
 
 ## [0.1.5] - 2026-05-21
 
