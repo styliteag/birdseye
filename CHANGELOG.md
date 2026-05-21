@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+-
+
+## [0.2.1] - 2026-05-21
+
+### Added
 - `STDOUT_EXCLUDE`, `MATTERMOST_EXCLUDE`, `EMAIL_EXCLUDE` — per-sink
   fnmatch deny-list, subtracted from the corresponding `_INCLUDE` set.
   Lets operators say "everything except X" without enumerating every
