@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `EMAIL_STARTUP_TEST=true` and `MATTERMOST_STARTUP_TEST=true` — one-shot
+  smoke probes that fire at container start, before the poll loop. The
+  email probe sends a self-describing message (host, time, transport,
+  recipients) over the resolved SMTP transport; the Mattermost probe
+  posts a single canned message to the webhook. Failure is logged but
+  never aborts the forwarder — the probes are diagnostic, not gating.
 - `SMTP_TLS_MODE=starttls|tls|none` — explicit SMTP transport selector
   for the forwarder and both backup jobs. `tls` enables implicit TLS
   (SMTPS) on port 465; `starttls` keeps the previous submission

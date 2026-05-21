@@ -30,6 +30,10 @@ services:
       # Mattermost (empty webhook disables the sink)
       MATTERMOST_WEBHOOK_URL: ${MATTERMOST_WEBHOOK_URL:-}
       MATTERMOST_USERNAME: ${MATTERMOST_USERNAME:-BirdsEye}
+      # One-shot probes at container start so you don't have to wait
+      # for a real event to know the sinks work. Default off.
+      MATTERMOST_STARTUP_TEST: ${MATTERMOST_STARTUP_TEST:-false}
+      EMAIL_STARTUP_TEST: ${EMAIL_STARTUP_TEST:-false}
 
       # Email (EMAIL_MODE: off | immediate | digest)
       EMAIL_MODE: ${EMAIL_MODE:-off}

@@ -11,6 +11,7 @@ import fnmatch
 import json
 import os
 import smtplib
+import socket
 import sys
 import time
 import urllib.error
@@ -63,6 +64,10 @@ def _env_float(name: str, default: float) -> float:
 def _env_list(name: str, default: str) -> list[str]:
     raw = _env(name, default)
     return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def _is_truthy(raw: str) -> bool:
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
 # --- formatting ------------------------------------------------------------
@@ -437,6 +442,26 @@ class MattermostSink:
             return
         self.post(f":rotating_light: **NetBird forwarder**: {text}")
 
+    def send_startup_test(self) -> bool:
+        """One-shot smoke probe gated by MATTERMOST_STARTUP_TEST.
+
+        Posts a single canned message so the operator can confirm the
+        webhook works without waiting for the next audit event. Returns
+        True on a successful POST, False otherwise (also logged).
+        """
+        if not self.enabled:
+            _log_info("mattermost startup test skipped — webhook empty")
+            return False
+        stamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
+        text = (
+            ":white_check_mark: **birdseye startup test** — "
+            f"posted by `{socket.gethostname()}` at `{stamp}`. "
+            "Webhook works."
+        )
+        ok = self.post(text)
+        _log_info("mattermost startup test posted" if ok else "mattermost startup test failed")
+        return ok
+
 
 @dataclass(frozen=True)
 class EmailSinkConfig:
@@ -480,6 +505,47 @@ class EmailSink:
         if self._send(events):
             self.digest_buffer = []
             self.last_flush = time.monotonic()
+
+    def send_startup_test(self) -> bool:
+        """One-shot smoke probe gated by EMAIL_STARTUP_TEST.
+
+        Sends a self-describing message via the resolved SMTP transport
+        so the operator can confirm credentials, TLS mode, and routing
+        at container start instead of waiting for the first event.
+        """
+        smtp = self.cfg.smtp
+        if smtp is None:
+            _log_info("email startup test skipped — EMAIL_MODE=off")
+            return False
+        nb_url = os.environ.get("NB_URL", "").strip() or "<unset>"
+        body = (
+            "birdseye email sink startup test.\n\n"
+            f"  container host: {socket.gethostname()}\n"
+            f"  netbird url:    {nb_url}\n"
+            f"  time:           {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
+            f"  email mode:     {self.mode}\n"
+            f"  transport:      {smtp.tls_mode} {smtp.host}:{smtp.port}\n"
+            f"  recipients:     {', '.join(smtp.to)}\n\n"
+            "Delivery of this mail confirms host, port, TLS mode, and "
+            "credentials are correct.\n"
+            "Set EMAIL_STARTUP_TEST=false (or unset) to suppress on the "
+            "next container start.\n"
+        )
+        msg = EmailMessage()
+        msg["From"] = smtp.sender
+        msg["To"] = ", ".join(smtp.to)
+        msg["Subject"] = f"[NetBird] birdseye startup test ({socket.gethostname()})"
+        msg.set_content(body)
+        try:
+            with open_smtp(smtp.host, smtp.port, smtp.tls_mode, timeout=15) as conn:
+                if smtp.user:
+                    conn.login(smtp.user, smtp.password)
+                conn.send_message(msg)
+            _log_info(f"email startup test sent to {', '.join(smtp.to)}")
+            return True
+        except (smtplib.SMTPException, OSError) as e:
+            _log_err(f"email startup test failed: {e.__class__.__name__}: {e}")
+            return False
 
     def _send(self, events: list[Json]) -> bool:
         smtp = self.cfg.smtp
@@ -738,6 +804,14 @@ def main() -> int:
     )
     email = _build_email_sink(resolver)
     state = State(state_path)
+
+    # One-shot health probes — run before the poll loop so the operator
+    # sees the result in the first chunk of logs. Failures are logged
+    # but never abort the forwarder; the probes are diagnostic, not gating.
+    if _is_truthy(_env("MATTERMOST_STARTUP_TEST")):
+        mattermost.send_startup_test()
+    if _is_truthy(_env("EMAIL_STARTUP_TEST")):
+        email.send_startup_test()
 
     return _run(
         client=client,

@@ -156,6 +156,8 @@ All knobs are env vars. Full list with defaults in
 | `EMAIL_INCLUDE` | `policy.*,user.*,setupkey.*,personalaccesstoken.*,account.*` | |
 | `MATTERMOST_WEBHOOK_URL` | _(empty = disabled)_ | Mattermost incoming webhook |
 | `MATTERMOST_USERNAME` | `birdseye` | Bot username on the webhook |
+| `MATTERMOST_STARTUP_TEST` | `false` | When `true`, posts a one-shot smoke message to the webhook at container start so you can verify routing before the first audit event arrives. Failure is logged but does not abort the forwarder. |
+| `EMAIL_STARTUP_TEST` | `false` | When `true`, sends a one-shot smoke mail (host, time, transport, recipients) at container start. Confirms SMTP host/port/TLS/credentials work without waiting for a configured event to fire. |
 | `EMAIL_MODE` | `off` | `off` \| `immediate` \| `digest` |
 | `EMAIL_DIGEST_MINUTES` | `15` | Digest flush interval |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` / `SMTP_TO` | _(empty)_ | SMTP settings (`SMTP_TO` is comma-separated). When `SMTP_PORT` is empty the default is derived from `SMTP_TLS_MODE`: 587 / 465 / 25. |
