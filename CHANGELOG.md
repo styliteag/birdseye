@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+-
+
+## [0.3.0] - 2026-08-01
+
+### Added
 - `netbird_maintenance.py` + `CRON_NETBIRD_MAINTENANCE` — runs the account
   reconcilers on a schedule instead of by hand: `manage_posture.py --all
   --add-posture $MAINTENANCE_POSTURE_CHECK`, then `allow_ping.py` when
