@@ -183,6 +183,7 @@ All knobs are env vars. Full list with defaults in
 | `CRON_MIRROR_ACCOUNT` | _(empty = disabled)_ | Schedule for `mirror_account.py`. The scheduled run is a dry run unless `MIRROR_APPLY=true` |
 | `CRON_CLONE_STANDBY` | _(empty = disabled)_ | Schedule for `clone_standby.py run` (typical: `17 */6 * * *`) |
 | `CRON_BACKUP_OFFSITE` | _(empty = disabled)_ | Schedule for `backup_offsite.py` (typical: `42 3 * * *`) |
+| `CRON_NETBIRD_MAINTENANCE` | _(empty = disabled)_ | Schedule for `netbird_maintenance.py` — attaches the posture check, then reconciles the ICMP companions (typical: `30 * * * *`) |
 | `CHECKMK_SPOOL_DIR` | _(empty = disabled)_ | Mount your Checkmk agent's spool directory here and the unattended jobs write a local check. The filename carries a max age, so a cron that stops running goes stale on its own — something mail cannot tell you |
 | `TZ` | `UTC` | Timezone for displayed timestamps |
 
@@ -299,6 +300,42 @@ For a strict hot-consistent backup of the management volume, either:
 
 `clone_standby.py` and `backup_offsite.py` (below) do exactly that second
 thing for you — see [`sqlite_snapshot.py`](sqlite_snapshot.py).
+
+## Keeping the account's conventions in step
+
+`manage_posture.py` and `allow_ping.py` are reconcilers: they compare the
+account against a convention and fix the difference. Run by hand they only take
+effect when someone remembers, so the account drifts in between — a policy
+created on Tuesday has no posture check and no `ZPING:` companion until the next
+manual pass. `netbird_maintenance.py` is what a cron entry calls so the
+convention holds by itself:
+
+```bash
+CRON_NETBIRD_MAINTENANCE=30 * * * *
+MAINTENANCE_POSTURE_CHECK=Posture-Europe   # an existing check; empty skips the step
+MAINTENANCE_ALLOW_PING=true                # empty skips the step
+```
+
+Order is not configurable, and that is the point: **posture runs first**.
+`allow_ping.py` copies each policy's `source_posture_checks` into its companion,
+so attaching a check afterwards would leave the companions one cycle behind.
+
+Both steps are idempotent — a run with nothing to do writes nothing, so an
+hourly schedule produces no audit-event noise in your Mattermost channel. The
+steps are independent: one failing does not stop the other, and every failure is
+reported at the end.
+
+To exempt individual policies from an automated run, use the markers the two
+scripts already honour: `POSTURE_IGNORE` or `PING_IGNORE` in the policy
+description. To watch before committing, set `MAINTENANCE_DRY_RUN=true` (or run
+it by hand with `--dry-run`); each step's own summary line
+(`Summary: created=… updated=… deleted=…`) ends up in the Checkmk check, so a
+reconciler that suddenly starts changing things every run is visible instead of
+buried in a container log.
+
+```bash
+docker exec birdseye /app/.venv/bin/python /app/netbird_maintenance.py --dry-run
+```
 
 ## Replication and off-host copies
 
@@ -467,8 +504,9 @@ that were already in this repo. `supervisord` is PID 1, supervising:
 - `cron -f` — runs `cleanup_ephemeral.py` on the `CRON_CLEANUP_EPHEMERAL`
   schedule and, when configured, `run_backup.sh` on `CRON_BACKUP_NETBIRD`
   (which sequentially invokes `backup_volumes.py` and `export_objects.py`
-  depending on what is configured), plus `mirror_account.py`,
-  `clone_standby.py run` and `backup_offsite.py` on their own schedules
+  depending on what is configured), plus `netbird_maintenance.py`,
+  `mirror_account.py`, `clone_standby.py run` and `backup_offsite.py` on their
+  own schedules
 
 A job whose prerequisites are incomplete is not installed at all; the
 entrypoint logs which env vars are missing and lists the schedules it did

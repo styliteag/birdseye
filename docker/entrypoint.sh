@@ -11,6 +11,8 @@ set -euo pipefail
     BACKUP_PATHS BACKUP_EMAIL_TO EXPORT_EMAIL_TO BACKUP_ZIP_PASSWORD \
     BACKUP_MAX_ATTACHMENT_MB BACKUP_LABEL BACKUP_EXCLUDE \
     CHECKMK_SPOOL_DIR \
+    MAINTENANCE_POSTURE_CHECK MAINTENANCE_POSTURE_RULE MAINTENANCE_ALLOW_PING \
+    MAINTENANCE_DRY_RUN MAINTENANCE_EMAIL_TO MAINTENANCE_SPOOL_MAX_AGE \
     MIRROR_URL MIRROR_API_KEY MIRROR_APPLY MIRROR_PRUNE MIRROR_SECTIONS \
     MIRROR_PROTECTED_GROUPS MIRROR_SNAPSHOT_DIR \
     CLONE_SSH_HOST CLONE_SSH_PORT CLONE_SSH_KEY CLONE_SSH_KNOWN_HOSTS CLONE_SSH_STRICT \
@@ -107,6 +109,26 @@ if [ -n "${CRON_MIRROR_ACCOUNT:-}" ]; then
     add_job "$CRON_MIRROR_ACCOUNT" "/app/.venv/bin/python /app/mirror_account.py" "mirror ($mode)"
   else
     echo "[entrypoint] CRON_MIRROR_ACCOUNT set but incomplete — mirror cron disabled; need:$gaps" >&2
+  fi
+fi
+
+# --- account maintenance: posture attachment, then ICMP companions -----------
+# Needs at least one step configured. Posture runs before allow_ping, because
+# the companions copy each policy's posture checks.
+if [ -n "${CRON_NETBIRD_MAINTENANCE:-}" ]; then
+  gaps=$(missing NB_URL NB_API_KEY)
+  if [ -z "${MAINTENANCE_POSTURE_CHECK:-}${MAINTENANCE_ALLOW_PING:-}" ]; then
+    gaps="$gaps MAINTENANCE_POSTURE_CHECK|MAINTENANCE_ALLOW_PING"
+  fi
+  if [ -z "$gaps" ]; then
+    bits=""
+    [ -n "${MAINTENANCE_POSTURE_CHECK:-}" ] && bits="${bits}posture "
+    [ -n "${MAINTENANCE_ALLOW_PING:-}" ] && bits="${bits}allow-ping "
+    [ -n "${MAINTENANCE_DRY_RUN:-}" ] && bits="${bits}(dry-run) "
+    add_job "$CRON_NETBIRD_MAINTENANCE" \
+      "/app/.venv/bin/python /app/netbird_maintenance.py" "maintenance (${bits% })"
+  else
+    echo "[entrypoint] CRON_NETBIRD_MAINTENANCE set but incomplete — maintenance cron disabled; need:$gaps" >&2
   fi
 fi
 

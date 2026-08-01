@@ -63,6 +63,7 @@ services:
       CRON_MIRROR_ACCOUNT: ${CRON_MIRROR_ACCOUNT:-}
       CRON_CLONE_STANDBY: ${CRON_CLONE_STANDBY:-}
       CRON_BACKUP_OFFSITE: ${CRON_BACKUP_OFFSITE:-}
+      CRON_NETBIRD_MAINTENANCE: ${CRON_NETBIRD_MAINTENANCE:-}
 
       # Volume backup (mount NetBird volumes read-only under /backup, see below)
       BACKUP_PATHS: ${BACKUP_PATHS:-}

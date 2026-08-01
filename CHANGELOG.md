@@ -8,7 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
--
+- `netbird_maintenance.py` + `CRON_NETBIRD_MAINTENANCE` — runs the account
+  reconcilers on a schedule instead of by hand: `manage_posture.py --all
+  --add-posture $MAINTENANCE_POSTURE_CHECK`, then `allow_ping.py` when
+  `MAINTENANCE_ALLOW_PING` is set. Posture runs first because the ICMP
+  companions copy each policy's `source_posture_checks`, so the other order
+  leaves them a cycle behind. The steps are independent, both honour
+  `MAINTENANCE_DRY_RUN`, failures mail `MAINTENANCE_EMAIL_TO`, and each step's
+  own summary line lands in the `NetBird_Account_Maintenance` Checkmk check —
+  so a reconciler that starts changing things on every run is visible rather
+  than buried in a container log. Policies keep their existing escape hatches:
+  `POSTURE_IGNORE` / `PING_IGNORE` in the description.
 
 ## [0.2.2] - 2026-08-01
 
