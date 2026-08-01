@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+-
+
+## [0.4.0] - 2026-08-01
+
 ### Fixed
 - `clone_standby.py` never mailed. A failed refresh set the Checkmk check CRIT
   and wrote the container log, but sent nothing — while `backup_offsite.py` did
