@@ -8,7 +8,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
--
+- `mirror_account.py` — mirrors one account's configuration onto a second
+  controller over the API (`MIRROR_URL` / `MIRROR_API_KEY`), matching
+  objects by name so it is idempotent and re-runnable. Dry run by
+  default; the scheduled run (`CRON_MIRROR_ACCOUNT`) writes only with
+  `MIRROR_APPLY=true`. The source is opened through a client that rejects
+  every non-GET method, and the run aborts if both URLs resolve to the
+  same host. Peers cannot be created through the API, so this is
+  explicitly not a failover path.
+- `clone_standby.py` — clones the *database* to a standby host over ssh
+  (`CRON_CLONE_STANDBY`), which makes failover a DNS change. Live SQLite
+  stores are copied with the online backup API (consistent, no downtime,
+  source read-only), checksummed into a payload together with the config
+  files, rsynced, and installed by a generated `install.sh` that verifies
+  every checksum before touching anything and keeps the previous states
+  for rollback. Actions: `stage`, `install`, `drill`, `verify`,
+  `failover`, `status`, `rollback`, `run`. Several targets are supported,
+  each with its own root directory, compose project and hostname; the
+  primary's hostname is substituted in the copies sent to a target that
+  answers under a different name. A target with `CERT_COPY=true` gets the
+  primary's certificate merged into the standby's ACME store with the
+  ingress stopped, so it can serve the primary's hostname before DNS
+  moves.
+- `backup_offsite.py` — dated `tar.gz` of configured directories to
+  another host over ssh (`CRON_BACKUP_OFFSITE`), verified on the far side
+  (sha256 + `tar tzf`) and pruned to `OFFSITE_KEEP`. Live SQLite files
+  listed in `OFFSITE_DB_PATHS` are snapshotted rather than tarred from
+  disk, where they would land torn.
+- `sqlite_snapshot.py`, `remote.py`, `checkmk.py` — shared helpers:
+  consistent hot copies of live SQLite files plus a row-count sanity gate
+  (`CLONE_MIN_ROWS`), ssh/rsync transport configured from an env prefix,
+  and an optional Checkmk local check (`CHECKMK_SPOOL_DIR`) whose spool
+  filename carries a max age, so a cron that stops running altogether
+  goes stale by itself.
+- `openssh-client` and `rsync` in the image, for the two ssh jobs.
+
+### Changed
+- The entrypoint builds its cron table from a list, logs one line per
+  enabled job, and names the missing env vars when a schedule is set but
+  its prerequisites are incomplete.
 
 ## [0.2.1] - 2026-05-21
 

@@ -30,6 +30,9 @@ RUN apt-get update \
         p7zip-full \
         ca-certificates \
         tzdata \
+        # clone_standby.py / backup_offsite.py push to another host over ssh
+        openssh-client \
+        rsync \
     && rm -rf /var/lib/apt/lists/*
 
 ARG VERSION=dev

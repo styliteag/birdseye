@@ -27,6 +27,11 @@ ticker sometimes misses, and an optional weekly
 volume snapshot for byte-identical restore, and an API config export
 in readable JSON.
 
+Three further optional jobs copy the deployment somewhere else — a
+configuration mirror onto a second controller, a database clone onto a
+standby you can fail over to, and a dated config archive over ssh. See
+[Replication and off-host copies](#replication-and-off-host-copies).
+
 Highlights:
 
 - **No event loss across restarts** — `last_id` persisted to a named
@@ -175,7 +180,15 @@ All knobs are env vars. Full list with defaults in
 | `BACKUP_MAX_ATTACHMENT_MB` | `20` | Above this, an error mail is sent in place of the attachment (applies to each mail) |
 | `BACKUP_LABEL` | _(empty)_ | Free-form tag in the subject and filename (e.g. `prod`) |
 | `BACKUP_EXCLUDE` | _(empty)_ | Comma-separated 7z wildcards excluded from the volume archive (case-insensitive, recursive) |
+| `CRON_MIRROR_ACCOUNT` | _(empty = disabled)_ | Schedule for `mirror_account.py`. The scheduled run is a dry run unless `MIRROR_APPLY=true` |
+| `CRON_CLONE_STANDBY` | _(empty = disabled)_ | Schedule for `clone_standby.py run` (typical: `17 */6 * * *`) |
+| `CRON_BACKUP_OFFSITE` | _(empty = disabled)_ | Schedule for `backup_offsite.py` (typical: `42 3 * * *`) |
+| `CHECKMK_SPOOL_DIR` | _(empty = disabled)_ | Mount your Checkmk agent's spool directory here and the unattended jobs write a local check. The filename carries a max age, so a cron that stops running goes stale on its own — something mail cannot tell you |
 | `TZ` | `UTC` | Timezone for displayed timestamps |
+
+The `MIRROR_*`, `CLONE_*` and `OFFSITE_*` settings behind the last three
+are documented inline in [`docker/.env.example`](docker/.env.example) and
+summarised in [Replication and off-host copies](#replication-and-off-host-copies).
 
 ## Weekly backup
 
@@ -284,6 +297,163 @@ For a strict hot-consistent backup of the management volume, either:
 - **Or pre-snapshot the DB** with `sqlite3 ".backup"` and back up the
   snapshot file (works without stopping NetBird).
 
+`clone_standby.py` and `backup_offsite.py` (below) do exactly that second
+thing for you — see [`sqlite_snapshot.py`](sqlite_snapshot.py).
+
+## Replication and off-host copies
+
+Three optional jobs copy a NetBird deployment somewhere else. They solve
+different problems and can be run together:
+
+| Job | Copies | Good for | Not good for |
+|---|---|---|---|
+| `mirror_account.py` | configuration, via the API | keeping a second controller's config in step — lab, staging, second region | failover: peers cannot be created through the API |
+| `clone_standby.py` | the database + config files, over ssh | **failover** — move one DNS record and the standby *is* the controller | reading an old value: it only holds the latest state |
+| `backup_offsite.py` | whole directories, as dated `tar.gz` | digging an old compose file, `.env` or ACME store out of three weeks ago | fast recovery: it is an archive, not a running system |
+
+Nothing about any particular deployment is baked in: every host, path,
+directory and stack name is an env var, and each job disables itself when
+its inputs are empty. Full list with comments in
+[`docker/.env.example`](docker/.env.example).
+
+### Account mirror
+
+Copies posture checks, groups, networks, resources, routers, policies,
+routes, setup keys, DNS, users and account settings from `NB_URL` onto a
+second controller. Objects are matched **by name**, not by ID (IDs are
+per-instance), so the sync is idempotent and can be re-run.
+
+```bash
+MIRROR_URL=https://netbird2.example.com
+MIRROR_API_KEY=nbp_…
+MIRROR_APPLY=true          # without this a scheduled run only reports drift
+CRON_MIRROR_ACCOUNT=25 * * * *
+```
+
+The source is opened through a client that rejects every method except
+`GET`, and the run aborts if both URLs resolve to the same host. Pruning
+is on by default — this is a mirror, not an additive import; set
+`MIRROR_PRUNE=false` if you want it to only ever add. Run it by hand
+first, it is dry-run by default:
+
+```bash
+docker exec birdseye /app/.venv/bin/python /app/mirror_account.py
+docker exec birdseye /app/.venv/bin/python /app/mirror_account.py --apply
+```
+
+Peers cannot be created through the API — they enrol themselves with a
+setup key — so anything pointing at a peer is skipped until a peer of
+that name exists on the target. That is also why this is not a failover
+target.
+
+### Standby clone
+
+Copies the *database* to a host you can fail over to by moving one DNS
+record. The live SQLite stores are read with SQLite's online backup API —
+transactionally consistent, no downtime, source opened read-only —
+checksummed into a payload with the config files, rsynced, and installed
+by a generated `install.sh` that verifies every checksum before touching
+anything and keeps the previous states for rollback.
+
+```bash
+CLONE_SSH_HOST=root@standby.example.com
+CLONE_DB_PATHS=/data/netbird/store.db,/data/netbird/idp.db
+CLONE_CONFIG_FILES=/data/stack/config.yaml,/data/stack/dashboard.env
+CLONE_TARGETS=real,test
+CLONE_REAL_ROOT=/root/nb-real       # the clone: the primary's own identity
+CLONE_REAL_HOST=netbird.example.com #   …and hostname
+CLONE_REAL_AUTOSTART=false          #   normally stopped
+CLONE_REAL_CERT_COPY=true
+CLONE_TEST_ROOT=/root/nb-test       # the smoke test: same data, own name
+CLONE_TEST_HOST=standby.example.com
+CLONE_TEST_AUTOSTART=true
+CRON_CLONE_STANDBY=17 */6 * * *
+```
+
+Two targets is the useful arrangement. The **clone** carries the primary's
+identity and stays stopped; the **smoke test** runs continuously under the
+standby's own hostname and proves the data survived the trip without
+pretending to be the primary. One payload serves both: in the copies sent
+to a target whose `HOST` differs, the primary's hostname is substituted
+inside the config files.
+
+```bash
+docker exec birdseye /app/.venv/bin/python /app/clone_standby.py stage
+docker exec birdseye /app/.venv/bin/python /app/clone_standby.py install
+docker exec birdseye /app/.venv/bin/python /app/clone_standby.py drill    # start, verify, stop
+docker exec birdseye /app/.venv/bin/python /app/clone_standby.py status
+```
+
+`drill` is the one to schedule an eye on: it starts the clone, compares
+account id and object counts against the live primary over a connection
+that resolves the primary's hostname to the standby's address — no DNS
+change, nothing else disturbed — and stops it again. `run` does
+stage → install → drill in one go and is what `CRON_CLONE_STANDBY` calls.
+
+Two things worth knowing before relying on it:
+
+- **Certificates.** A standby cannot *issue* the primary's certificate
+  while DNS still points at the primary — the CA would validate against
+  the primary. A target with `CERT_COPY=true` therefore serves a copy,
+  merged into the standby's ACME store on every run with the ingress
+  stopped (Traefik reads that store only at startup and rewrites it from
+  memory afterwards, so merging into a running instance is silently
+  discarded). After a real failover the standby renews by itself over
+  HTTP-01/TLS-ALPN, no DNS-provider account needed.
+- **Peers enrolled since the last run are missing**, and dashboard
+  sessions do not survive: the tokens were issued by the other instance.
+
+`failover.sh` is written to the clone's directory on the standby, so a
+failover works even when the primary — and this container with it — is
+gone.
+
+### Offsite config archive
+
+A dated `tar.gz` of whole directories on another host, verified after
+transfer (sha256 + `tar tzf` on the far side) and pruned to `OFFSITE_KEEP`.
+
+```bash
+OFFSITE_SSH_HOST=root@standby.example.com
+OFFSITE_REMOTE_DIR=/root/backups
+OFFSITE_PATHS=/data/stack,/data/traefik
+OFFSITE_DB_PATHS=/data/netbird/store.db   # snapshotted, not tarred from disk
+OFFSITE_EXCLUDE=*.mmdb,*.BIN              # large, regenerable
+OFFSITE_KEEP=14
+CRON_BACKUP_OFFSITE=42 3 * * *
+```
+
+Paths are stored relative to their common parent unless
+`OFFSITE_BASE_DIR` says otherwise, so `/data/stack,/data/traefik` yields
+an archive holding `stack/` and `traefik/`. The archives are written
+`0600` and **contain secrets** — ACME private keys, `.env` files, store
+encryption keys. Send them only somewhere that already holds data of the
+same sensitivity.
+
+### SSH access
+
+Both ssh jobs need a key that can reach the far side; the clone also needs
+docker there. Mount the key read-only and point the job at it:
+
+```yaml
+volumes:
+  - ./standby_key:/run/secrets/standby_key:ro
+  - /opt/stacks/netbird/data/netbird_data:/data/netbird:ro
+  - /opt/stacks/netbird:/data/stack:ro
+```
+
+```bash
+CLONE_SSH_KEY=/run/secrets/standby_key
+CLONE_SSH_STRICT=accept-new      # trust on first use (default)
+```
+
+`accept-new` accepts an unknown host key once and pins it. To verify the
+first connection too, mount a `known_hosts` file, point
+`CLONE_SSH_KNOWN_HOSTS` at it and set `CLONE_SSH_STRICT=yes`.
+
+Everything these two jobs write happens on the far side: locally they only
+read, and the docker socket (needed only for `CLONE_IMAGES`, which pins the
+standby to the image digests the primary runs) can be mounted read-only.
+
 ## What's in the image
 
 The image bundles the long-running forwarder plus the operator scripts
@@ -293,7 +463,12 @@ that were already in this repo. `supervisord` is PID 1, supervising:
 - `cron -f` — runs `cleanup_ephemeral.py` on the `CRON_CLEANUP_EPHEMERAL`
   schedule and, when configured, `run_backup.sh` on `CRON_BACKUP_NETBIRD`
   (which sequentially invokes `backup_volumes.py` and `export_objects.py`
-  depending on what is configured)
+  depending on what is configured), plus `mirror_account.py`,
+  `clone_standby.py run` and `backup_offsite.py` on their own schedules
+
+A job whose prerequisites are incomplete is not installed at all; the
+entrypoint logs which env vars are missing and lists the schedules it did
+enable, so `docker logs birdseye | head` tells you what is actually armed.
 
 The one-shot operator scripts are also baked in and can be invoked via
 `docker exec`:
@@ -305,6 +480,9 @@ docker exec birdseye /app/.venv/bin/python /app/cleanup_ephemeral.py --dry-run
 docker exec birdseye /app/.venv/bin/python /app/allow_ping.py --help
 docker exec birdseye /app/.venv/bin/python /app/manage_posture.py --help
 docker exec birdseye /app/.venv/bin/python /app/setup_keys.py --help
+docker exec birdseye /app/.venv/bin/python /app/mirror_account.py        # dry run
+docker exec birdseye /app/.venv/bin/python /app/clone_standby.py status
+docker exec birdseye /app/.venv/bin/python /app/backup_offsite.py --list
 ```
 
 > `uv` lives only in the builder stage, so inside the running image use

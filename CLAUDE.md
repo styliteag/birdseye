@@ -38,6 +38,16 @@ When constructing raw payloads, flatten embedded group objects (returned by `GET
 - Always support `--dry-run`.
 - Print a before/after line for every mutation so the audit trail is visible in stdout.
 
+## Jobs that copy a deployment somewhere else
+
+`mirror_account.py` (API → second controller), `clone_standby.py` (database → failover host) and `backup_offsite.py` (directories → dated archives). Rules that keep them installation-agnostic:
+
+- **No hostnames, paths or stack names in the code.** Everything is an env var with a per-job prefix (`MIRROR_`, `CLONE_`, `OFFSITE_`), read through `backup_common.env*`. A job disables itself when its inputs are empty, and says which ones are missing.
+- SSH goes through `remote.Remote.from_env("<PREFIX>")` — do not shell out to `ssh` directly. Remote work is a bash script fed to that object on stdin, so it stays one round trip and one place to read.
+- Live SQLite files are copied with `sqlite_snapshot.snapshot()`, never `cp`/`tar`.
+- Unattended jobs must alert on **configuration** errors too (an unmounted path, a renamed target), not only on a step that fails — otherwise the failure only exists in the container log. Mail via `backup_common`, plus `checkmk.write()` when `CHECKMK_SPOOL_DIR` is set.
+- Anything generated and shipped (`install.sh`, `failover.sh`) is rendered from a template with `@@TOKEN@@` substitution and must stay readable: someone will run it by hand on the far side during an outage.
+
 ## Commit style
 
 Conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, `chore:`, `test:`, `perf:`, `ci:`. No `Co-Authored-By` trailers.

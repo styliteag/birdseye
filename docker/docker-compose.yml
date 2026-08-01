@@ -55,6 +55,14 @@ services:
       # Cron jobs (empty schedule = disabled)
       CRON_CLEANUP_EPHEMERAL: ${CRON_CLEANUP_EPHEMERAL:-*/15 * * * *}
       CRON_BACKUP_NETBIRD: ${CRON_BACKUP_NETBIRD:-}
+      # Account mirror / standby clone / offsite archive. Every MIRROR_*,
+      # CLONE_* and OFFSITE_* setting reaches the container through env_file
+      # above — including the per-target CLONE_<NAME>_* names, which depend on
+      # what you put in CLONE_TARGETS and so cannot be listed here.
+      # See .env.example and the mounts below.
+      CRON_MIRROR_ACCOUNT: ${CRON_MIRROR_ACCOUNT:-}
+      CRON_CLONE_STANDBY: ${CRON_CLONE_STANDBY:-}
+      CRON_BACKUP_OFFSITE: ${CRON_BACKUP_OFFSITE:-}
 
       # Volume backup (mount NetBird volumes read-only under /backup, see below)
       BACKUP_PATHS: ${BACKUP_PATHS:-}
@@ -78,6 +86,32 @@ services:
       # - netbird_management:/backup/management:ro
       # - netbird_signal:/backup/signal:ro
       # - netbird_caddy_data:/backup/caddy:ro
+
+      # --- Standby clone / offsite archive (read-only sources) ------------
+      # The clone reads the live SQLite stores and the config files it ships;
+      # the offsite archive reads whole stack directories. Both only ever read
+      # here — everything they write happens on the far side over ssh.
+      #   CLONE_DB_PATHS=/data/netbird/store.db,/data/netbird/idp.db
+      #   CLONE_CONFIG_FILES=/data/stack/config.yaml,/data/stack/dashboard.env
+      #   OFFSITE_PATHS=/data/stack,/data/traefik
+      # - /opt/stacks/netbird/data/netbird_data:/data/netbird:ro
+      # - /opt/stacks/netbird:/data/stack:ro
+      # - /opt/stacks/traefik:/data/traefik:ro
+      #
+      # The ssh key that reaches the standby (CLONE_SSH_KEY / OFFSITE_SSH_KEY).
+      # - ./standby_key:/run/secrets/standby_key:ro
+      # Pin the host key instead of trusting it on first use, then set
+      # CLONE_SSH_STRICT=yes:
+      # - ./known_hosts:/run/secrets/known_hosts:ro
+      #
+      # Only needed for CLONE_IMAGES (reading local image digests). Read-only,
+      # and the clone never runs a container here — it talks to the standby's
+      # docker over ssh.
+      # - /var/run/docker.sock:/var/run/docker.sock:ro
+      #
+      # Checkmk local checks (CHECKMK_SPOOL_DIR) — the only mount that is
+      # written to.
+      # - /var/lib/check_mk_agent/spool:/var/lib/check_mk_agent/spool
 
     # --- Alternative: join your production NetBird docker network ---
     # If you prefer to reach NetBird internally instead of via the public
