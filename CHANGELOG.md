@@ -34,7 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   another host over ssh (`CRON_BACKUP_OFFSITE`), verified on the far side
   (sha256 + `tar tzf`) and pruned to `OFFSITE_KEEP`. Live SQLite files
   listed in `OFFSITE_DB_PATHS` are snapshotted rather than tarred from
-  disk, where they would land torn.
+  disk, where they would land torn. `OFFSITE_PATHS` and
+  `CLONE_TARGET_PATHS` / `CLONE_SHARED_PATHS` accept wildcards, so
+  `/data/*` archives whatever is mounted under `/data` and files whose
+  name carries a date (GeoIP databases) keep being shipped after they
+  rotate; an entry matching nothing fails the run instead of quietly
+  dropping content.
 - `sqlite_snapshot.py`, `remote.py`, `checkmk.py` — shared helpers:
   consistent hot copies of live SQLite files plus a row-count sanity gate
   (`CLONE_MIN_ROWS`), ssh/rsync transport configured from an env prefix,

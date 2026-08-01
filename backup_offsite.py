@@ -21,7 +21,9 @@ Everything is configuration:
 
   OFFSITE_SSH_HOST=root@backup.example.com   where it goes (empty disables the job)
   OFFSITE_REMOTE_DIR=/root/backups           directory there, created 0700
-  OFFSITE_PATHS=/data/traefik,/data/netbird  what to pack (mount them read-only)
+  OFFSITE_PATHS=/data/*                      what to pack — a wildcard means
+                                             "whatever is mounted under /data",
+                                             so a new mount needs no config change
   OFFSITE_DB_PATHS=/data/netbird/store.db    live SQLite files, snapshotted first
   OFFSITE_EXCLUDE=*.mmdb,*.BIN               tar patterns for large regenerable files
   OFFSITE_KEEP=14                            archives retained on the remote
@@ -38,9 +40,9 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import glob
 import os
 import shutil
-import subprocess
 import sys
 
 from dotenv import load_dotenv
@@ -68,6 +70,26 @@ CHECK_NAME = "NetBird_Config_Backup"
 SPOOL_FILE = "netbird_config_backup"
 # 48 h: with a daily schedule one missed run is tolerated, two are not.
 SPOOL_MAX_AGE = 172800
+
+
+def _expand(paths: list[str], what: str) -> list[str]:
+    """Expand wildcards in a path list.
+
+    `OFFSITE_PATHS=/data/*` means "archive whatever is mounted under /data" —
+    add a mount, it is in the next archive, with no env var to remember. An
+    entry that matches nothing is an error rather than a silent omission: the
+    whole point of this job is that the archive is complete.
+    """
+    out: list[str] = []
+    for item in paths:
+        if not any(c in item for c in "*?["):
+            out.append(item)
+            continue
+        matches = sorted(glob.glob(item))
+        if not matches:
+            raise SystemExit(f"{what} entry {item!r} matched nothing")
+        out += matches
+    return out
 
 
 def _base_dir(paths: list[str]) -> str:
@@ -219,10 +241,11 @@ def main(argv: list[str] | None = None) -> int:
     # is no longer mounted is exactly the kind of breakage a scheduled run has to
     # shout about rather than log quietly into the container's stdout.
     try:
-        paths = env_list("OFFSITE_PATHS")
+        paths = _expand(env_list("OFFSITE_PATHS"), "OFFSITE_PATHS")
         if not paths:
             raise SystemExit("OFFSITE_PATHS is not set — nothing to back up")
-        missing = [p for p in paths + env_list("OFFSITE_DB_PATHS") if not os.path.exists(p)]
+        db_paths = _expand(env_list("OFFSITE_DB_PATHS"), "OFFSITE_DB_PATHS")
+        missing = [p for p in paths + db_paths if not os.path.exists(p)]
         if missing:
             raise SystemExit(
                 "configured but not present inside the container: " + ", ".join(missing)
@@ -240,7 +263,7 @@ def main(argv: list[str] | None = None) -> int:
         os.chmod(work, 0o700)
 
         _log(f"packing {', '.join(paths)} relative to {base}")
-        gz = build_archive(paths, env_list("OFFSITE_DB_PATHS"), base, work, stamp)
+        gz = build_archive(paths, db_paths, base, work, stamp)
         if args.dry_run:
             _log(f"dry-run: keeping {gz}, not shipping it")
             return 0
@@ -255,7 +278,9 @@ def main(argv: list[str] | None = None) -> int:
             SPOOL_MAX_AGE,
         )
         return 0
-    except (RemoteError, subprocess.SubprocessError, OSError, RuntimeError, SystemExit) as e:
+    # Broad on purpose: a scheduled backup that dies on an unforeseen error
+    # still has to mail and mark the check CRIT, not just log a traceback.
+    except (SystemExit, Exception) as e:  # noqa: B014
         detail = str(e) if isinstance(e, SystemExit) else f"{type(e).__name__}: {e}"
         _log(f"FAILED: {detail}")
         _notify_failure(detail, remote_dir)

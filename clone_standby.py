@@ -59,6 +59,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import glob
 import hashlib
 import http.client
 import json
@@ -83,7 +84,9 @@ from remote import Remote, RemoteError, compose_cmd
 
 _log = make_log("clone_standby")
 
-DEFAULT_STAGE_DIR = "/var/lib/birdseye/clone-stage"
+# Container-local on purpose: the payload is rebuilt from scratch every run,
+# and a stage directory inside a mounted source directory recurses (see stage()).
+DEFAULT_STAGE_DIR = "/var/tmp/birdseye-clone-stage"
 DEFAULT_DB_SUBDIR = "data/netbird"
 DEFAULT_MIN_ROWS = "accounts:1,peers:1"
 DEFAULT_DOCKER_SOCKET = "/var/run/docker.sock"
@@ -191,7 +194,14 @@ class Config:
 
 
 def _parse_paths(spec: str, *, absolute_dest: bool) -> list[PathSpec]:
-    """Parse `local:dest[:mode]` entries. Bare `local` keeps the basename."""
+    """Parse `local:dest[:mode]` entries. Bare `local` keeps the basename.
+
+    A `local` containing a wildcard is expanded now and `dest` is then a
+    *directory*: each match is installed under it by basename. That is what
+    files whose name carries a date need — GeoIP databases and the like —
+    since naming them individually means quietly shipping nothing the month
+    the name changes.
+    """
     out = []
     for item in (s.strip() for s in spec.split(",")):
         if not item:
@@ -211,7 +221,18 @@ def _parse_paths(spec: str, *, absolute_dest: bool) -> list[PathSpec]:
             raise SystemExit(f"{item!r}: shared destinations must be absolute paths")
         if not absolute_dest and dest.startswith("/"):
             raise SystemExit(f"{item!r}: target destinations are relative to the target root")
-        out.append(PathSpec(local.rstrip("/"), dest.rstrip("/"), mode))
+        local, dest = local.rstrip("/"), dest.rstrip("/")
+        if any(c in local for c in "*?["):
+            if len(parts) == 1:
+                raise SystemExit(f"{item!r}: a wildcard needs an explicit destination directory")
+            matches = sorted(glob.glob(local))
+            if not matches:
+                # Silence here would mean shipping a payload that is quietly
+                # missing something the operator asked for.
+                raise SystemExit(f"{item!r}: matched no files")
+            out += [PathSpec(m, f"{dest}/{os.path.basename(m)}", mode) for m in matches]
+            continue
+        out.append(PathSpec(local, dest, mode))
     return out
 
 
@@ -371,6 +392,23 @@ def stage(cfg: Config, args) -> int:
         raise SystemExit(
             "these paths are configured but not present inside the container: " + ", ".join(missing)
         )
+
+    # A stage directory inside one of the directories being copied makes
+    # copytree descend into its own output until Python runs out of stack —
+    # the traceback that produces says nothing about the actual mistake, and
+    # it fills the disk on the way. Easy to hit when the container's state
+    # volume happens to live under a mounted stack directory.
+    stage_abs = os.path.abspath(cfg.stage_dir)
+    for spec in cfg.target_paths + cfg.shared_paths:
+        src = os.path.abspath(spec.local)
+        if os.path.isdir(src) and (stage_abs == src or stage_abs.startswith(src + os.sep)):
+            raise SystemExit(
+                f"CLONE_STAGE_DIR ({stage_abs}) is inside {spec.local}, which this run has to "
+                "copy — staging would recurse into its own payload. Point CLONE_STAGE_DIR "
+                "at a directory outside every path listed in CLONE_TARGET_PATHS / "
+                "CLONE_SHARED_PATHS (a container-local one such as /var/tmp/... is fine, "
+                "the payload is rebuilt on every run)."
+            )
 
     stage_dir = cfg.stage_dir
     if os.path.isdir(stage_dir):
@@ -989,7 +1027,10 @@ def run_cycle(cfg: Config, args) -> int:
         print(f"\n===== {name}")
         try:
             rc = step()
-        except (SystemExit, RemoteError, OSError) as e:
+        # Deliberately broad: an unattended job that dies on something nobody
+        # predicted must still alert. A bug that only prints a traceback into
+        # the container log leaves the standby quietly rotting.
+        except (SystemExit, Exception) as e:  # noqa: B014
             rc = 1
             detail = str(e) if isinstance(e, SystemExit) else f"{type(e).__name__}: {e}"
         else:

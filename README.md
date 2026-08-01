@@ -415,7 +415,7 @@ transfer (sha256 + `tar tzf` on the far side) and pruned to `OFFSITE_KEEP`.
 ```bash
 OFFSITE_SSH_HOST=root@standby.example.com
 OFFSITE_REMOTE_DIR=/root/backups
-OFFSITE_PATHS=/data/stack,/data/traefik
+OFFSITE_PATHS=/data/*                     # whatever is mounted under /data
 OFFSITE_DB_PATHS=/data/netbird/store.db   # snapshotted, not tarred from disk
 OFFSITE_EXCLUDE=*.mmdb,*.BIN              # large, regenerable
 OFFSITE_KEEP=14
@@ -423,8 +423,12 @@ CRON_BACKUP_OFFSITE=42 3 * * *
 ```
 
 Paths are stored relative to their common parent unless
-`OFFSITE_BASE_DIR` says otherwise, so `/data/stack,/data/traefik` yields
-an archive holding `stack/` and `traefik/`. The archives are written
+`OFFSITE_BASE_DIR` says otherwise, so mounts at `/data/stack` and
+`/data/traefik` yield an archive holding `stack/` and `traefik/`. A
+wildcard entry is expanded at run time: `/data/*` archives whatever is
+mounted under `/data`, so adding a mount needs no config change, and an
+entry that matches nothing fails the run rather than quietly shrinking
+the archive. The archives are written
 `0600` and **contain secrets** — ACME private keys, `.env` files, store
 encryption keys. Send them only somewhere that already holds data of the
 same sensitivity.
