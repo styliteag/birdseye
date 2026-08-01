@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+-
+
+## [0.2.2] - 2026-08-01
+
+### Added
 - `mirror_account.py` — mirrors one account's configuration onto a second
   controller over the API (`MIRROR_URL` / `MIRROR_API_KEY`), matching
   objects by name so it is idempotent and re-runnable. Dry run by
