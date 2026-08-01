@@ -444,6 +444,11 @@ Two things worth knowing before relying on it:
 failover works even when the primary — and this container with it — is
 gone.
 
+A failed refresh mails `CLONE_EMAIL_TO` (falling back to `BACKUP_EMAIL_TO`,
+then `SMTP_TO`) and marks the `NetBird_Standby_Clone` check CRIT. Both matter:
+mail tells you a run broke, the check's max age tells you a run stopped
+happening at all.
+
 ### Offsite config archive
 
 A dated `tar.gz` of whole directories on another host, verified after

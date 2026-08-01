@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `clone_standby.py` never mailed. A failed refresh set the Checkmk check CRIT
+  and wrote the container log, but sent nothing — while `backup_offsite.py` did
+  both, and the documentation claimed the clone did too. With
+  `CHECKMK_SPOOL_DIR` unset that left a failing standby visible only in
+  `docker logs`, which is exactly the silent rot the job is supposed to prevent.
+  Adds `CLONE_EMAIL_TO` (falling back to `BACKUP_EMAIL_TO`, then `SMTP_TO`) and
+  mails on both paths: a failing step, and a configuration error that stops the
+  run before the first step.
+
+### Changed
+- `backup_common.notify_failure()` — one failure-mail helper for every
+  scheduled job, replacing a copy per job. Three copies is how the clone ended
+  up with none. `error_mail()`'s body is now generic ("… failed") instead of
+  "did not produce a deliverable archive", which was wrong for the two jobs
+  that produce no archive.
+
 ### Added
 -
 

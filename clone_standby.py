@@ -79,7 +79,7 @@ from dotenv import load_dotenv
 
 import checkmk
 import sqlite_snapshot
-from backup_common import env, env_int, env_list, make_log
+from backup_common import env, env_int, env_list, make_log, notify_failure
 from remote import Remote, RemoteError, compose_cmd
 
 _log = make_log("clone_standby")
@@ -1037,6 +1037,13 @@ def run_cycle(cfg: Config, args) -> int:
             detail = f"step '{name}' exited {rc}"
         if rc != 0:
             _log(f"FAILED at {name}: {detail}")
+            notify_failure(
+                recipient_env="CLONE_EMAIL_TO",
+                subject_prefix="NetBird standby clone",
+                what="The standby clone refresh",
+                detail=f"Failed at step '{name}'.\n\n{detail}\n",
+                log=_log,
+            )
             checkmk.write(
                 SPOOL_FILE,
                 CHECK_NAME,
@@ -1089,6 +1096,13 @@ def main(argv: list[str] | None = None) -> int:
         except SystemExit as e:
             detail = str(e)
             _log(f"FAILED before the first step: {detail}")
+            notify_failure(
+                recipient_env="CLONE_EMAIL_TO",
+                subject_prefix="NetBird standby clone",
+                what="The standby clone refresh",
+                detail=f"Misconfigured, nothing ran.\n\n{detail}\n",
+                log=_log,
+            )
             checkmk.write(
                 SPOOL_FILE,
                 CHECK_NAME,

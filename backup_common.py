@@ -1,9 +1,10 @@
-"""Shared helpers for the weekly NetBird backup jobs.
+"""Shared helpers for the scheduled jobs: SMTP, failure mail, 7z packaging.
 
-Used by both `backup_volumes.py` (mounted-volume snapshot) and
-`export_objects.py` (API config export). Each job picks its own subject
-prefix and recipient env var; everything else — SMTP, 7z packaging,
-base64-aware size check — comes from here.
+Used by `backup_volumes.py` and `export_objects.py` (the mailed weekly
+archives), and by `clone_standby.py`, `backup_offsite.py` and
+`netbird_maintenance.py` for env parsing and `notify_failure()`. Each job
+picks its own subject prefix and recipient env var; everything else comes
+from here, so a job cannot quietly end up without a mail path.
 """
 
 from __future__ import annotations
@@ -105,6 +106,39 @@ def send_mail(cfg: SmtpConfig, msg: EmailMessage) -> None:
         smtp.send_message(msg)
 
 
+def notify_failure(
+    *,
+    recipient_env: str,
+    subject_prefix: str,
+    what: str,
+    detail: str,
+    log: Callable[[str], None],
+) -> None:
+    """Best-effort failure mail from an unattended job. Never raises.
+
+    Every scheduled job needs this and each one getting its own copy is how one
+    of them ends up silently not mailing at all. Recipients: the job's own
+    variable, then BACKUP_EMAIL_TO, then SMTP_TO. A job that cannot mail says so
+    in its log and carries on — the caller still has to mark the check CRIT,
+    which is what actually catches a mail path that has stopped working.
+    """
+    for rcpt, fallback in ((recipient_env, "BACKUP_EMAIL_TO"), ("SMTP_TO", "SMTP_TO")):
+        try:
+            cfg = smtp_config(recipient_env=rcpt, fallback_env=fallback, who=what)
+        except SystemExit:
+            continue
+        try:
+            send_mail(
+                cfg,
+                error_mail(cfg, base_subject(subject_prefix, env("BACKUP_LABEL")), what, detail),
+            )
+            log(f"failure mailed to {', '.join(cfg.to)}")
+        except OSError as e:
+            log(f"could not mail the failure: {e}")
+        return
+    log("no SMTP configured — failure not mailed")
+
+
 # --- subjects --------------------------------------------------------------
 
 
@@ -187,5 +221,7 @@ def error_mail(cfg: SmtpConfig, subject: str, what: str, reason: str) -> EmailMe
     msg["From"] = cfg.sender
     msg["To"] = ", ".join(cfg.to)
     msg["Subject"] = f"{subject} — FAILED"
-    msg.set_content(f"{what} did not produce a deliverable archive.\n\n{reason}\n")
+    # Deliberately generic: this is also the failure mail for the clone refresh
+    # and the account maintenance, neither of which produces an archive.
+    msg.set_content(f"{what} failed.\n\n{reason}\n")
     return msg

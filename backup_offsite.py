@@ -49,16 +49,7 @@ from dotenv import load_dotenv
 
 import checkmk
 import sqlite_snapshot
-from backup_common import (
-    base_subject,
-    env,
-    env_int,
-    env_list,
-    error_mail,
-    make_log,
-    send_mail,
-    smtp_config,
-)
+from backup_common import env, env_int, env_list, make_log, notify_failure
 from remote import Remote, RemoteError, run_local
 
 _log = make_log("backup_offsite")
@@ -189,25 +180,16 @@ echo "SIZE $(du -sh . | cut -f1)"
 
 
 def _notify_failure(detail: str, remote_dir: str) -> None:
-    try:
-        cfg = smtp_config(
-            recipient_env="OFFSITE_EMAIL_TO", fallback_env="BACKUP_EMAIL_TO", who="backup_offsite"
-        )
-    except SystemExit:
-        try:
-            cfg = smtp_config(recipient_env="SMTP_TO", who="backup_offsite")
-        except SystemExit:
-            _log("no SMTP configured — failure not mailed")
-            return
-    subject = base_subject("NetBird offsite backup", env("BACKUP_LABEL"))
-    body = (
-        f"{detail}\n\nThe archive should have landed in {remote_dir} on "
-        f"{env('OFFSITE_SSH_HOST')}.\nCheck with:  backup_offsite.py --list\n"
+    notify_failure(
+        recipient_env="OFFSITE_EMAIL_TO",
+        subject_prefix="NetBird offsite backup",
+        what="The offsite config backup",
+        detail=(
+            f"{detail}\n\nThe archive should have landed in {remote_dir} on "
+            f"{env('OFFSITE_SSH_HOST')}.\nCheck with:  backup_offsite.py --list\n"
+        ),
+        log=_log,
     )
-    try:
-        send_mail(cfg, error_mail(cfg, subject, "The offsite config backup", body))
-    except OSError as e:
-        _log(f"could not mail the failure either: {e}")
 
 
 def main(argv: list[str] | None = None) -> int:

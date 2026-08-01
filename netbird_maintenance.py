@@ -42,7 +42,7 @@ import sys
 from dotenv import load_dotenv
 
 import checkmk
-from backup_common import base_subject, env, env_int, error_mail, make_log, send_mail, smtp_config
+from backup_common import env, env_int, make_log, notify_failure
 
 _log = make_log("netbird_maintenance")
 
@@ -89,30 +89,13 @@ def run_step(name: str, cmd: list[str]) -> tuple[int, str]:
 
 
 def _notify_failure(detail: str) -> None:
-    for recipient, fallback in (
-        ("MAINTENANCE_EMAIL_TO", "BACKUP_EMAIL_TO"),
-        ("SMTP_TO", "SMTP_TO"),
-    ):
-        try:
-            cfg = smtp_config(
-                recipient_env=recipient, fallback_env=fallback, who="netbird_maintenance"
-            )
-        except SystemExit:
-            continue
-        try:
-            send_mail(
-                cfg,
-                error_mail(
-                    cfg,
-                    base_subject("NetBird maintenance", env("BACKUP_LABEL")),
-                    "The scheduled account maintenance",
-                    detail,
-                ),
-            )
-        except OSError as e:
-            _log(f"could not mail the failure: {e}")
-        return
-    _log("no SMTP configured — failure not mailed")
+    notify_failure(
+        recipient_env="MAINTENANCE_EMAIL_TO",
+        subject_prefix="NetBird maintenance",
+        what="The scheduled account maintenance",
+        detail=detail,
+        log=_log,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
