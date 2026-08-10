@@ -6,7 +6,7 @@ ICMP rule using the same groups, posture checks, direction, and enabled state.
 
 Default run is a full reconciliation:
   + create  ZPING companions for new originals
-  ~ update  ZPING companions when the original drifted (enabled,
+  ~ update  ZPING companions when the original drifted (enabled, description,
             posture checks, sources, destinations, action, direction, rule name)
   - delete  ZPING companions whose original was removed, or whose original
             now allows ICMP via protocol=all/icmp, or whose original is
@@ -36,6 +36,8 @@ Json = dict[str, Any]
 DEFAULT_PREFIX = "ZPING: "
 SKIP_PROTOCOLS = {"all", "icmp"}
 PING_IGNORE_MARKER = "PING_IGNORE"
+# Owned by manage_posture.py, but we have to propagate it: see _companion_description.
+POSTURE_IGNORE_MARKER = "POSTURE_IGNORE"
 
 
 def _skips_ping(policy: Json) -> bool:
@@ -120,6 +122,23 @@ def _qualifying_rules(policy: Json) -> list[Json]:
     return out
 
 
+def _companion_description(policy: Json) -> str:
+    """Description for the companion, carrying POSTURE_IGNORE over from the original.
+
+    Without this the two reconcilers fight each other once an hour. A policy marked
+    POSTURE_IGNORE keeps `source_posture_checks` empty, and we copy that empty list into
+    the companion — but manage_posture.py looks only at the *companion's own* description,
+    sees no marker, and attaches Posture-Europe. Next run we see the drift and strip it
+    again. Steady state is correct but it churns two policy.update events per hour, and
+    between the two steps the companion is geo-gated, which is exactly what the marker on
+    the original was meant to prevent (e.g. ACME renewal must not depend on geolocation).
+    """
+    desc = f"Auto-generated ICMP companion for {policy['name']!r}"
+    if POSTURE_IGNORE_MARKER in (policy.get("description") or ""):
+        desc = f"{desc} {POSTURE_IGNORE_MARKER}"
+    return desc
+
+
 def _build_ping_payload(policy: Json, prefix: str) -> Json | None:
     qualifying = _qualifying_rules(policy)
     if not qualifying:
@@ -140,7 +159,7 @@ def _build_ping_payload(policy: Json, prefix: str) -> Json | None:
 
     return {
         "name": f"{prefix}{policy['name']}",
-        "description": f"Auto-generated ICMP companion for {policy['name']!r}",
+        "description": _companion_description(policy),
         "enabled": policy.get("enabled", True),
         "source_posture_checks": list(policy.get("source_posture_checks") or []),
         "rules": icmp_rules,
@@ -170,6 +189,11 @@ def _signature(policy_or_payload: Json) -> tuple:
     """Return a comparable signature so we can detect drift between a
     desired payload and the current ZPING policy. Handles both API shapes:
     GET returns rules with embedded group objects, our payload uses ID strings.
+
+    The policy description is part of the signature because it carries the
+    POSTURE_IGNORE marker (see _companion_description) — a companion that lost or
+    never got the marker has to be repaired, not just left alone. We own these
+    descriptions outright; nb-set-descriptions.py deliberately skips 'ZPING: ' policies.
     """
 
     def _ids(refs) -> tuple[str, ...]:
@@ -189,6 +213,7 @@ def _signature(policy_or_payload: Json) -> tuple:
     )
     return (
         bool(policy_or_payload.get("enabled", True)),
+        (policy_or_payload.get("description") or ""),
         tuple(sorted(policy_or_payload.get("source_posture_checks") or [])),
         tuple(rule_sigs),
     )

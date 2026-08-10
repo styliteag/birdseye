@@ -10,6 +10,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 -
 
+### Fixed
+- `allow_ping.py` and `manage_posture.py` fought each other once an hour over the
+  ICMP companion of any `POSTURE_IGNORE` policy. The companion inherits the
+  original's empty `source_posture_checks`, but `manage_posture` reads only the
+  *companion's own* description — saw no marker, attached the posture check;
+  `allow_ping` then saw the drift and stripped it again. Two `policy.update`
+  events per hour, forever, and between the two steps the companion was
+  geo-gated — the precise thing the marker on the original exists to prevent
+  (ACME renewal must not depend on geolocation). Companion descriptions now
+  carry `POSTURE_IGNORE` over from their original, and the policy description is
+  part of the drift signature, so companions that never got the marker are
+  repaired instead of silently churning. Observed on
+  `ZPING: Sty-ACME-Clients-Access`.
+
 ## [0.4.0] - 2026-08-01
 
 ### Fixed
