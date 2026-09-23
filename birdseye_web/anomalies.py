@@ -8,6 +8,7 @@ cannot do what it says (empty or missing groups, resources nobody routes).
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 
@@ -24,6 +25,7 @@ class Finding:
     title: str
     detail: str = ""
     link: str = ""  # page to fix it
+    group_id: str = ""  # the group the finding is about, if any
 
 
 @dataclass(frozen=True)
@@ -171,6 +173,7 @@ def _empty_groups(snap: Snapshot) -> Iterator[Finding]:
                 "warning",
                 f"{_group_name(snap, gid)} is empty (used in {pol.name})",
                 link=f"/groups/{gid}",
+                group_id=gid,
             )
 
 
@@ -229,7 +232,9 @@ def _unused_groups(snap: Snapshot) -> Iterator[Finding]:
         if res and res <= targeted and not g.peer_ids:
             continue
         n = len(g.peer_ids) + len(g.resource_ids)
-        yield Finding("unused-group", "info", f"{g.name} ({n} members)", link=f"/groups/{g.id}")
+        yield Finding(
+            "unused-group", "info", f"{g.name} ({n} members)", link=f"/groups/{g.id}", group_id=g.id
+        )
 
 
 def _disabled(snap: Snapshot) -> Iterator[Finding]:
@@ -244,7 +249,9 @@ def _disabled(snap: Snapshot) -> Iterator[Finding]:
                 )
 
 
-def find_anomalies(snap: Snapshot) -> tuple[Finding, ...]:
+def find_anomalies(snap: Snapshot, ignore: re.Pattern[str] | None = None) -> tuple[Finding, ...]:
+    """All findings, most severe first. `ignore` matches group names to skip."""
+    ignored = {g.id for g in snap.groups.values() if ignore and ignore.search(g.name)}
     found = [
         *_missing_groups(snap),
         *_direct_targets(snap),
@@ -256,4 +263,5 @@ def find_anomalies(snap: Snapshot) -> tuple[Finding, ...]:
         *_unused_groups(snap),
         *_disabled(snap),
     ]
-    return tuple(sorted(found, key=lambda f: SEVERITY_ORDER[f.severity]))
+    kept = [f for f in found if f.group_id not in ignored]
+    return tuple(sorted(kept, key=lambda f: SEVERITY_ORDER[f.severity]))

@@ -180,3 +180,11 @@ def test_disabled_policy_does_not_reach_resource():
         ],
     )
     assert len(_by(find_anomalies(s), "unreachable-resource")) == 1
+
+
+def test_ignore_pattern_hides_group_findings():
+    import re
+
+    s = snap(groups=[group("Z002 Short forms: -RG=ResourceGroup"), group("Real-Unused")])
+    titles = [f.title for f in find_anomalies(s, re.compile(r"^Z\d{3} "))]
+    assert titles == ["Real-Unused (0 members)"]

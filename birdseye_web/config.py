@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from urllib.parse import urlparse
@@ -22,6 +23,8 @@ class Settings:
     redirect_path: str = "/auth/callback"
     cache_ttl: float = 30.0
     session_hours: float = 12.0
+    # groups whose name matches are never reported on the anomalies page
+    anomaly_ignore: str = ""
 
     @property
     def redirect_uri(self) -> str:
@@ -56,6 +59,11 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         raise ConfigError("birdseye-web: missing configuration: " + ", ".join(missing))
     if len(get("WEB_SESSION_SECRET")) < 32:
         raise ConfigError("birdseye-web: WEB_SESSION_SECRET must be at least 32 characters")
+    anomaly_ignore = get("WEB_ANOMALY_IGNORE")
+    try:
+        re.compile(anomaly_ignore)
+    except re.error as exc:
+        raise ConfigError(f"birdseye-web: WEB_ANOMALY_IGNORE is not a valid regex: {exc}") from exc
     redirect_path = get("WEB_REDIRECT_PATH", "/auth/callback")
     if not redirect_path.startswith("/"):
         raise ConfigError("birdseye-web: WEB_REDIRECT_PATH must start with '/'")
@@ -68,4 +76,5 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         redirect_path=redirect_path,
         cache_ttl=float(get("WEB_CACHE_TTL", "30")),
         session_hours=float(get("WEB_SESSION_HOURS", "12")),
+        anomaly_ignore=anomaly_ignore,
     )

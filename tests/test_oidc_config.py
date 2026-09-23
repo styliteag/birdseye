@@ -120,3 +120,10 @@ def test_settings_rejects(override):
 def test_local_redirect_path_root():
     s = load_settings({**GOOD, "WEB_BASE_URL": "http://localhost:53000", "WEB_REDIRECT_PATH": "/"})
     assert s.redirect_uri == "http://localhost:53000/" and not s.secure_cookies
+
+
+def test_anomaly_ignore_regex_validated():
+    ok = load_settings({**GOOD, "WEB_ANOMALY_IGNORE": r"^Z\d{3}\b"})
+    assert ok.anomaly_ignore == r"^Z\d{3}\b"
+    with pytest.raises(ConfigError, match="WEB_ANOMALY_IGNORE"):
+        load_settings({**GOOD, "WEB_ANOMALY_IGNORE": "(["})

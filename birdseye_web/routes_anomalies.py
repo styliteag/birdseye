@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import re
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
 
 from birdseye_web.anomalies import CHECKS, SEVERITY_ORDER, find_anomalies
-from birdseye_web.context import TEMPLATES, current_session, snapshot
+from birdseye_web.context import TEMPLATES, ctx, current_session, snapshot
 from birdseye_web.models import Snapshot
 from birdseye_web.sessions import Session
 
@@ -21,7 +23,9 @@ async def anomalies_page(
 ) -> Response:
     level = request.query_params.get("min", "info")
     limit = SEVERITY_ORDER.get(level, 2)
-    found = [f for f in find_anomalies(snap) if SEVERITY_ORDER[f.severity] <= limit]
+    pattern = ctx(request).settings.anomaly_ignore
+    everything = find_anomalies(snap, re.compile(pattern) if pattern else None)
+    found = [f for f in everything if SEVERITY_ORDER[f.severity] <= limit]
     sections = []
     for check in CHECKS:
         hits = [f for f in found if f.check == check.key]

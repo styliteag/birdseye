@@ -24,6 +24,9 @@ services:
       WEB_OIDC_CLIENT_ID: ${WEB_OIDC_CLIENT_ID:-netbird-dashboard}
       WEB_CACHE_TTL: ${WEB_CACHE_TTL:-30}
       WEB_SESSION_HOURS: ${WEB_SESSION_HOURS:-12}
+      # Regex on group names the Anomalies page never reports, e.g. groups used
+      # only as documentation notes:  ^Z[0-9]{3}\b
+      WEB_ANOMALY_IGNORE: ${WEB_ANOMALY_IGNORE:-}
       TZ: ${TZ:-UTC}
     ports:
       # Bind to localhost and publish through the reverse proxy (TLS).
