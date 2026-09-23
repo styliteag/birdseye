@@ -99,8 +99,8 @@ table.list td.arrow { color: var(--muted); text-align: center; width: 24px; }
 .switch.on span { left: 16px; }
 
 /* --- matrix --------------------------------------------------------------------------------- */
-.matrix-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; flex: 1; min-height: 0; }
-.matrix-main { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.matrix-layout { display: flex; flex: 1; min-height: 0; }
+.matrix-main { flex: 1; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
 .matrix-main > #matrix { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .filters { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 8px; }
 .tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
@@ -212,3 +212,24 @@ h4.loss { color: var(--deny); }
   .flow { grid-template-columns: 1fr; }
   .flow-arrow { padding: 0; transform: rotate(90deg); }
 }
+
+/* --- cell popover ------------------------------------------------------------------ */
+.popover { position: fixed; z-index: 50; width: 380px; max-height: min(560px, calc(100vh - 24px)); overflow: auto;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .28); padding: 12px 14px; }
+.pop-head { display: flex; align-items: start; gap: 8px; }
+.pop-head .detail-title { flex: 1; }
+.pop-close { font-size: 14px; color: var(--muted); }
+table.matrix[data-editable="1"] td:not(.hit):hover { background-color: var(--hl); cursor: pointer;
+  box-shadow: inset 0 0 0 1px var(--accent); }
+td.pop-anchor, td.pop-anchor:hover { box-shadow: inset 0 0 0 2px var(--accent) !important; }
+.quick-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.quick-actions form { margin: 0; }
+.quick-actions .quick-result, .quick-result { flex-basis: 100%; }
+button.small, .button.small { padding: 2px 8px; font-size: 12px; }
+.quick-allow label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
+.quick-allow label.check { flex-direction: row; color: var(--ink); margin: 6px 0; }
+.quick-allow label.chip-toggle { flex-direction: row; align-items: center; color: var(--ink); padding: 2px 8px; }
+.quick-allow .chips-select { gap: 4px; margin: 4px 0 8px; }
+.quick-allow .grid2 { align-items: start; }
+.quick-preview form { display: flex; gap: 10px; align-items: center; margin-top: 6px; }

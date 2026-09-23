@@ -1,7 +1,9 @@
-{% if not cell %}
-  <p class="muted">No access.</p>
-{% else %}
-<h3 class="detail-title">{{ row.label if row else '?' }} <span class="arrow">→</span> {{ col.label if col else '?' }}</h3>
+<div class="pop-head">
+  <h3 class="detail-title">{{ row.label }} <span class="arrow">→</span> {{ col.label }}</h3>
+  <button type="button" class="link pop-close" data-pop-close title="Close (Esc)">✕</button>
+</div>
+
+{% if cell %}
 <p class="services">
   {% for s in cell.service_labels %}<span class="pill">{{ s }}</span>{% endfor %}
   {% if cell.conditional %}<span class="pill cond">posture-gated</span>{% endif %}
@@ -21,8 +23,59 @@
       {% if it.grant.action == 'drop' %}<span class="pill deny">DROP</span>{% endif %}
       {% for p in it.posture %}<span class="pill cond">{{ p }}</span>{% endfor %}
     </div>
-    {% if it.policy and it.policy.description %}<p class="muted small">{{ it.policy.description }}</p>{% endif %}
+    {% if it.actions %}
+    <div class="quick-actions">
+      {% for a in it.actions %}
+      <form hx-post="/matrix/revoke" hx-target="next .quick-result">
+        <input type="hidden" name="policy_id" value="{{ it.grant.policy_id }}">
+        <input type="hidden" name="rule_id" value="{{ it.grant.rule_id }}">
+        <input type="hidden" name="mode" value="{{ a.mode }}">
+        <input type="hidden" name="target" value="{{ a.target }}">
+        <input type="hidden" name="preview" value="1">
+        <button class="small {{ 'danger' if a.mode == 'delete' }}">{{ a.label }}</button>
+      </form>
+      {% endfor %}
+      <a class="button small" href="/policies/{{ it.grant.policy_id }}">Open in editor</a>
+      <div class="quick-result"></div>
+    </div>
+    {% endif %}
   </li>
   {% endfor %}
 </ul>
+{% if items and not items[0].actions and view.key not in ('groups', 'resources') %}
+  <p class="muted small">Switch to the Group × Group or Group × Resource view to edit access here.</p>
+{% endif %}
+
+{% else %}
+<p class="muted">No access.</p>
+{% if can_allow %}
+<form class="quick-allow" hx-post="/matrix/allow" hx-target="next .quick-result">
+  <input type="hidden" name="row" value="{{ row_key }}">
+  <input type="hidden" name="col" value="{{ col_key }}">
+  <input type="hidden" name="preview" value="1">
+  <h4>Allow access</h4>
+  <div class="grid2">
+    <label>Protocol
+      <select name="protocol">
+        {% for p in protocols %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Ports <input name="ports" placeholder="all, or 22, 443, 8000-8099"></label>
+  </div>
+  <label class="check"><input type="checkbox" name="bidirectional"> Bidirectional</label>
+  {% if posture_checks %}
+  <p class="muted small">Posture checks</p>
+  <div class="chips-select small">
+    {% for c in posture_checks %}
+    <label class="chip-toggle"><input type="checkbox" name="posture" value="{{ c.id }}"> {{ c.name }}</label>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <label class="block small">Policy name <input name="name" placeholder="{{ row.label }} -> {{ col.label }}"></label>
+  <button class="primary">Preview</button>
+</form>
+<div class="quick-result"></div>
+{% elif view.key not in ('groups', 'resources') %}
+  <p class="muted small">Switch to the Group × Group or Group × Resource view to grant access here.</p>
+{% endif %}
 {% endif %}

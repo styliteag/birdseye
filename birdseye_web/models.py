@@ -145,6 +145,14 @@ class Snapshot:
     policies: Mapping[str, Policy] = field(default_factory=dict)
     posture_checks: Mapping[str, PostureCheck] = field(default_factory=dict)
 
+    def names(self) -> dict[str, str]:
+        """Display name for any group, resource or peer ID."""
+        return {
+            **{g.id: g.name for g in self.groups.values()},
+            **{r.id: r.name for r in self.resources.values()},
+            **{p.id: p.name for p in self.peers.values()},
+        }
+
     def endpoint_name(self, ref: Ref) -> str:
         if ref.kind == "peer":
             peer = self.peers.get(ref.id)

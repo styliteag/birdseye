@@ -11,7 +11,13 @@ from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from birdseye_web import routes_auth, routes_groups, routes_matrix, routes_policies
+from birdseye_web import (
+    routes_auth,
+    routes_groups,
+    routes_matrix,
+    routes_policies,
+    routes_quickedit,
+)
 from birdseye_web.config import Settings, load_settings
 from birdseye_web.context import TEMPLATES, AppContext, CSRFError, LoginRequired
 from birdseye_web.nbapi import NetBirdAPI, NetBirdError
@@ -63,6 +69,7 @@ def create_app(
 
     app.include_router(routes_auth.router)
     app.include_router(routes_matrix.router)
+    app.include_router(routes_quickedit.router)
     app.include_router(routes_groups.router)
     app.include_router(routes_policies.router)
 

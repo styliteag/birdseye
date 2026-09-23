@@ -13,12 +13,15 @@ from birdseye_web.context import TEMPLATES, current_session, snapshot
 from birdseye_web.matrix import (
     Matrix,
     MatrixFilter,
+    axis,
     group_matrix,
     peer_matrix,
     resource_matrix,
     user_matrix,
 )
 from birdseye_web.models import Ref, Snapshot
+from birdseye_web.payloads import PROTOCOLS as PAYLOAD_PROTOCOLS
+from birdseye_web.quickedit import EDITABLE_VIEWS, cell_actions
 from birdseye_web.sessions import Session
 
 router = APIRouter()
@@ -158,7 +161,8 @@ async def cell_detail(
         ),
     )
     cell = m.cell(row, col)
-    axes = {a.key: a for a in (*m.rows, *m.cols)}
+    names = snap.names()
+    editable = view.key in EDITABLE_VIEWS and s.can("policies", "update")
     items = []
     for g in cell.grants if cell else ():
         pol, rule = _rule(snap, g.policy_id, g.rule_id)
@@ -171,22 +175,26 @@ async def cell_detail(
                     snap.posture_checks[c].name if c in snap.posture_checks else c
                     for c in g.conditional
                 ],
+                "actions": cell_actions(g, row, col, names) if editable else (),
             }
         )
-    via = sorted(
-        (axes[k].label if k in axes else _label(snap, k)) for k in (cell.via if cell else ())
-    )
+    via = sorted(axis(snap, k).label for k in (cell.via if cell else ()))
     return TEMPLATES.TemplateResponse(
         request,
         "_cell_detail.html",
         {
             "session": s,
-            "row": axes.get(row),
-            "col": axes.get(col),
+            "row": axis(snap, row),
+            "col": axis(snap, col),
+            "row_key": row,
+            "col_key": col,
             "cell": cell,
             "items": items,
             "via": via,
             "view": view,
+            "can_allow": editable and row.startswith("g:") and col[:2] in ("g:", "r:", "p:"),
+            "protocols": PAYLOAD_PROTOCOLS,
+            "posture_checks": sorted(snap.posture_checks.values(), key=lambda c: c.name.lower()),
         },
     )
 

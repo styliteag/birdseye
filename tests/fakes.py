@@ -22,7 +22,12 @@ ME = {
     "id": "u1",
     "name": "Alice",
     "role": "admin",
-    "permissions": {"modules": {"groups": {"create": True}, "policies": {"create": True}}},
+    "permissions": {
+        "modules": {
+            "groups": {"create": True, "update": True},
+            "policies": {"create": True, "update": True},
+        }
+    },
 }
 
 

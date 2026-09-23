@@ -1,0 +1,15 @@
+{% if error %}
+  <p class="flash err small">{{ error }}</p>
+{% elif done %}
+  <p class="flash ok small">✔ {{ done }}</p>
+{% else %}
+  <div class="quick-preview">
+    <p class="small"><strong>{{ summary }}</strong> – effect:</p>
+    {% include "_delta.html" %}
+    <form hx-post="{{ confirm }}" hx-target="closest .quick-result">
+      {% for k, v in fields %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+      <button class="{{ 'danger' if danger else 'primary' }}">Confirm</button>
+      <button type="button" class="link" data-quick-cancel>Cancel</button>
+    </form>
+  </div>
+{% endif %}

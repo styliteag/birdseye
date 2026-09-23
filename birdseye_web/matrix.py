@@ -78,7 +78,7 @@ def ref_key(ref: Ref) -> str:
     return ("p:" if ref.kind == "peer" else "r:") + ref.id
 
 
-def _axis(snap: Snapshot, key: str) -> Axis:
+def axis(snap: Snapshot, key: str) -> Axis:
     kind, _, oid = key.partition(":")
     if kind == "g":
         g = snap.groups.get(oid)
@@ -129,10 +129,10 @@ def _assemble(
     col_keys = {c for _, c in raw}
     sort = lambda a: (a.label.lower(), a.key)  # noqa: E731
     rows = sorted(
-        (a for a in map(lambda k: _axis(snap, k), row_keys) if _matches(a, flt.row_query)), key=sort
+        (a for a in map(lambda k: axis(snap, k), row_keys) if _matches(a, flt.row_query)), key=sort
     )
     cols = sorted(
-        (a for a in map(lambda k: _axis(snap, k), col_keys) if _matches(a, flt.col_query)), key=sort
+        (a for a in map(lambda k: axis(snap, k), col_keys) if _matches(a, flt.col_query)), key=sort
     )
     truncated = len(rows) > flt.max_rows or len(cols) > flt.max_cols
     rows, cols = rows[: flt.max_rows], cols[: flt.max_cols]
@@ -214,6 +214,7 @@ def user_matrix(snap: Snapshot, grant_list, flt: MatrixFilter = NO_FILTER) -> Ma
 
 __all__ = [
     "Axis",
+    "axis",
     "Cell",
     "Matrix",
     "MatrixFilter",

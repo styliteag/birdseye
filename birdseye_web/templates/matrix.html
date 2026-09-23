@@ -33,12 +33,12 @@
       <span class="cell c-icmp">ping</span> ICMP only
       <span class="cell c-ssh">ssh</span> NetBird SSH
       <span class="cell c-ports c-cond">22</span> posture-gated
-      <span class="muted">· row may access column · click a cell to see why</span>
+      <span class="muted">· row may access column · click a cell for details, in the Group views click an empty cell to allow access</span>
     </div>
-    <div id="matrix">{% include "_matrix_table.html" %}</div>
+    <div id="matrix" hx-get="/matrix" hx-include="#matrix-filter" hx-trigger="matrix-changed from:body">{% include "_matrix_table.html" %}</div>
   </section>
-  <aside id="detail" class="detail">
-    <p class="muted">Click a cell to see which policies allow the access.</p>
-  </aside>
+</div>
+<div id="popover" class="popover" hidden role="dialog" aria-label="Cell details">
+  <div id="popover-body"></div>
 </div>
 {% endblock %}

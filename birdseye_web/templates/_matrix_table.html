@@ -7,7 +7,7 @@
   <p class="empty">No access for these filters.</p>
 {% else %}
 <div class="matrix-scroll">
-<table class="matrix" data-view="{{ view.key }}">
+<table class="matrix" data-view="{{ view.key }}" data-editable="{{ '1' if view.key in ('groups', 'resources') and session.can('policies', 'update') else '' }}">
   <thead>
     <tr>
       <th class="corner"><span>{{ view.rows }} ↓ / {{ view.cols }} →</span></th>
@@ -28,12 +28,7 @@
       {% for c in m.cols %}
         {% set cell = m.cells.get((r.key, c.key)) %}
         {% if cell %}
-        <td class="hit" data-col="{{ c.key }}">
-          <button class="cell {{ cell|cell_class }}"
-                  hx-get="/matrix/cell?row={{ r.key|urlencode }}&col={{ c.key|urlencode }}&{{ query }}"
-                  hx-target="#detail"
-                  title="{{ r.label }} → {{ c.label }}: {{ cell.service_labels|join(', ') }}{% if cell.conditional %} (posture-gated){% endif %}">{{ cell|cell_short }}</button>
-        </td>
+        <td class="hit" data-col="{{ c.key }}"><button class="cell {{ cell|cell_class }}" title="{{ r.label }} → {{ c.label }}: {{ cell.service_labels|join(', ') }}{% if cell.conditional %} (posture-gated){% endif %}">{{ cell|cell_short }}</button></td>
         {% else %}<td data-col="{{ c.key }}"></td>{% endif %}
       {% endfor %}
     </tr>
