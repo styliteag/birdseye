@@ -34,7 +34,7 @@ When constructing raw payloads, flatten embedded group objects (returned by `GET
 
 ## Conventions for new write scripts
 
-- Reuse the `_client_from_env()` pattern (parses `NB_URL` netloc, reads `NB_API_KEY`, returns `APIClient`).
+- Build the client with `nb_client.client_from_env(key="user"|"admin")` (reads `NB_URL` plus `NB_API_KEY` / `NB_ADMIN_API_KEY`, returns `APIClient`).
 - Always support `--dry-run`.
 - Print a before/after line for every mutation so the audit trail is visible in stdout.
 
@@ -47,6 +47,17 @@ When constructing raw payloads, flatten embedded group objects (returned by `GET
 - Live SQLite files are copied with `sqlite_snapshot.snapshot()`, never `cp`/`tar`.
 - Unattended jobs must alert on **configuration** errors too (an unmounted path, a renamed target), not only on a step that fails — otherwise the failure only exists in the container log. Mail via `backup_common`, plus `checkmk.write()` when `CHECKMK_SPOOL_DIR` is set.
 - Anything generated and shipped (`install.sh`, `failover.sh`) is rendered from a template with `@@TOKEN@@` substitution and must stay readable: someone will run it by hand on the far side during an outage.
+
+## Web UI (`birdseye_web/`)
+
+FastAPI + Jinja + HTMX, own image (`docker/web/Dockerfile`). User docs: `docs/web-ui.md`.
+
+- **No API key.** Users sign in through NetBird's embedded IdP as the public client `netbird-dashboard` (auth code + PKCE); the management API accepts no other audience. Every call goes through `nbapi.NetBirdAPI` with `Authorization: Bearer <user token>` — the SDK hardcodes `Token`, so it is not used here. Never add a service key: NetBird's role checks and audit log depend on the user's own token.
+- **Layers:** `models.py` (frozen dataclasses parsed from raw API dicts) → `access.py` (`grants()` per rule, `edges()` expanded to peers/resources) → `matrix.py` / `diff.py` / `anomalies.py`. All views read the same grants, so they cannot disagree. Keep these pure and tested; routes only do HTTP.
+- **Writes:** raw dicts via `payloads.py` / `quickedit.py`. Group `PUT` replaces the whole group — always re-`GET` first and carry `resources` over. Policy updates start from a fresh `GET` and keep fields the editor does not show (`authorized_groups`, `sourceResource`).
+- Every write: CSRF (`context.csrf_protect`), `context.log_change()` before/after line, `cache.invalidate()`. Previews use `diff.access_delta()` on a simulated snapshot.
+- UI text is English. No inline JS/`hx-on` (strict CSP); behaviour lives in `static/app.js`.
+- Run locally: see `docs/web-ui.md` step 3 (`http://localhost:53000/` is a preregistered redirect). Tests: `uv run pytest`.
 
 ## Commit style
 

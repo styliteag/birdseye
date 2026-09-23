@@ -12,7 +12,6 @@ on:
         type: string
 
 env:
-  IMAGE_NAME: birdseye
   DOCKERHUB_NAMESPACE: styliteag
 
 permissions:
@@ -25,13 +24,19 @@ jobs:
   build:
     strategy:
       matrix:
+        image:
+          - name: birdseye
+            dockerfile: docker/Dockerfile
+          - name: birdseye-web
+            dockerfile: docker/web/Dockerfile
+        arch: [amd64, arm64]
         include:
-          - platform: linux/amd64
+          - arch: amd64
+            platform: linux/amd64
             runner: ubuntu-latest
-            arch: amd64
-          - platform: linux/arm64
+          - arch: arm64
+            platform: linux/arm64
             runner: ubuntu-22.04-arm
-            arch: arm64
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout code
@@ -82,18 +87,18 @@ jobs:
         with:
           push: true
           context: .
-          file: docker/Dockerfile
+          file: ${{ matrix.image.dockerfile }}
           platforms: ${{ matrix.platform }}
-          cache-from: type=registry,ref=ghcr.io/${{ env.DOCKERHUB_NAMESPACE }}/${{ env.IMAGE_NAME }}/buildcache:linux-${{ matrix.arch }}
-          cache-to: type=registry,ref=ghcr.io/${{ env.DOCKERHUB_NAMESPACE }}/${{ env.IMAGE_NAME }}/buildcache:linux-${{ matrix.arch }},mode=max
+          cache-from: type=registry,ref=ghcr.io/${{ env.DOCKERHUB_NAMESPACE }}/${{ matrix.image.name }}/buildcache:linux-${{ matrix.arch }}
+          cache-to: type=registry,ref=ghcr.io/${{ env.DOCKERHUB_NAMESPACE }}/${{ matrix.image.name }}/buildcache:linux-${{ matrix.arch }},mode=max
           sbom: true
           provenance: true
           build-args: |
             VERSION=${{ steps.version.outputs.version }}
             VCS_REF=${{ github.sha }}
           tags: |
-            ${{ env.DOCKERHUB_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-${{ matrix.arch }}
-            ghcr.io/${{ env.DOCKERHUB_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-${{ matrix.arch }}
+            ${{ env.DOCKERHUB_NAMESPACE }}/${{ matrix.image.name }}:${{ steps.version.outputs.version }}-${{ matrix.arch }}
+            ghcr.io/${{ env.DOCKERHUB_NAMESPACE }}/${{ matrix.image.name }}:${{ steps.version.outputs.version }}-${{ matrix.arch }}
 
   merge:
     runs-on: ubuntu-latest
@@ -143,15 +148,16 @@ jobs:
           V: ${{ steps.version.outputs.version }}
           M: ${{ steps.version.outputs.major }}
           MM: ${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }}
-          HUB: ${{ env.DOCKERHUB_NAMESPACE }}/${{ env.IMAGE_NAME }}
-          GHCR: ghcr.io/${{ env.DOCKERHUB_NAMESPACE }}/${{ env.IMAGE_NAME }}
+          NS: ${{ env.DOCKERHUB_NAMESPACE }}
         run: |
-          for registry in "$HUB" "$GHCR"; do
-            for extra_tag in "$V" "latest" "$MM" "$M"; do
-              docker buildx imagetools create \
-                -t "${registry}:${extra_tag}" \
-                "${registry}:${V}-amd64" \
-                "${registry}:${V}-arm64"
+          for image in birdseye birdseye-web; do
+            for registry in "$NS/$image" "ghcr.io/$NS/$image"; do
+              for extra_tag in "$V" "latest" "$MM" "$M"; do
+                docker buildx imagetools create \
+                  -t "${registry}:${extra_tag}" \
+                  "${registry}:${V}-amd64" \
+                  "${registry}:${V}-arm64"
+              done
             done
           done
 
@@ -168,6 +174,8 @@ jobs:
           Built from tag: $TAG
 
           Docker images:
-          - \`${{ env.DOCKERHUB_NAMESPACE }}/${{ env.IMAGE_NAME }}:$V\`
-          - \`ghcr.io/${{ env.DOCKERHUB_NAMESPACE }}/${{ env.IMAGE_NAME }}:$V\`" \
+          - \`${{ env.DOCKERHUB_NAMESPACE }}/birdseye:$V\`
+          - \`ghcr.io/${{ env.DOCKERHUB_NAMESPACE }}/birdseye:$V\`
+          - \`${{ env.DOCKERHUB_NAMESPACE }}/birdseye-web:$V\`
+          - \`ghcr.io/${{ env.DOCKERHUB_NAMESPACE }}/birdseye-web:$V\`" \
             --latest

@@ -27,6 +27,11 @@ ticker sometimes misses, and an optional weekly
 volume snapshot for byte-identical restore, and an API config export
 in readable JSON.
 
+A second, independent image, **`birdseye-web`**, is a web UI that shows
+*who can reach what* as a matrix and lets you edit groups and policies
+with a preview of the effect — signed in with your own NetBird account.
+See [Web UI](#web-ui-birdseye-web).
+
 Three further optional jobs copy the deployment somewhere else — a
 configuration mirror onto a second controller, a database clone onto a
 standby you can fail over to, and a dated config archive over ssh. See
@@ -71,6 +76,38 @@ docker compose logs -f
 Once running you should see `[forwarder] first boot — seeded last_id=N,
 no backlog forwarded`. Trigger any audit event in NetBird (e.g. toggle a
 policy) to confirm the pipeline works.
+
+## Web UI (birdseye-web)
+
+An access overview and editor for your NetBird account, shipped as its own
+image (`styliteag/birdseye-web`, `ghcr.io/styliteag/birdseye-web`):
+
+- **Matrix** — who may access whom: Group × Group, Peer × Peer,
+  Group × Resource, Peer × Resource, User × Destination; filter by name,
+  protocol and port; click a cell to see which policy allows it.
+- **Edit in place** — in the group views, revoke or grant access straight
+  from a cell. Every change first shows which peer pairs gain or lose access.
+- **Groups and policies** — create, rename, change membership, edit
+  multi-rule policies (including `netbird-ssh`, port ranges, posture
+  checks), each with the same gained/lost preview.
+- **Reachability** — “can X reach Y on tcp/22?”, with the reasons.
+- **Anomalies** — rules that bypass groups, devices whose groups drifted
+  from their user's defaults, peers inside resource groups, empty or unused
+  groups, resources nobody reaches.
+
+There is no API key: you sign in with your NetBird account through
+NetBird's embedded IdP, and every call runs with your token, so NetBird
+enforces your role and its audit log shows you.
+
+```bash
+cd docker/web
+cp .env.example .env    # WEB_NB_URL, WEB_BASE_URL, WEB_SESSION_SECRET
+docker compose up -d
+```
+
+One change on the NetBird side is required — the callback URL has to be
+registered with the IdP. Full setup, reverse proxy, local trial and
+troubleshooting: **[docs/web-ui.md](docs/web-ui.md)**.
 
 ## Running alongside your self-hosted NetBird
 
@@ -546,14 +583,18 @@ cp .env.example .env   # at repo root, edit with NB_URL + NB_API_KEY
 uv run events.py                          # streaming console viewer (the dev predecessor of event_forwarder)
 uv run list_policies.py                   # one-shot
 uv run docker/event_forwarder.py          # forwarder, with /var/lib/birdseye replaced by $STATE_FILE
+uv run pytest                             # birdseye_web test suite
 ```
+
+For running the web UI locally see [docs/web-ui.md](docs/web-ui.md#3-try-it-locally-first-no-netbird-change-needed).
 
 ## Releases
 
 [`./release.sh`](release.sh) bumps the version, updates `CHANGELOG.md`,
 tags the commit, and pushes — which triggers the
 [release-docker workflow](.github/workflows/release-docker.yml) to build
-and publish multi-arch images to Docker Hub and GHCR.
+and publish multi-arch images of both `birdseye` and `birdseye-web` to
+Docker Hub and GHCR.
 
 ```bash
 ./release.sh patch    # 0.1.0 → 0.1.1 (default)

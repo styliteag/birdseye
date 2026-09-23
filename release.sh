@@ -21,7 +21,7 @@ show_usage() {
     echo "  1. Update CHANGELOG.md (move [Unreleased] to new version)"
     echo "  2. Increment the version in ./VERSION file"
     echo "  3. Update pyproject.toml version"
-    echo "  4. Run uv sync + ruff check as build verification"
+    echo "  4. Run uv sync + ruff check + pytest as build verification"
     echo "  5. Commit the version change on the current branch"
     echo "  6. Create an annotated git tag v<version>"
     echo "  7. Push the branch and tag to origin"
@@ -158,6 +158,14 @@ run_build_tests() {
     fi
     print_success "ruff check passed"
 
+    print_info "Running tests..."
+    if ! uv run pytest -q > /tmp/pytest.log 2>&1; then
+        print_error "pytest failed!"
+        tail -40 /tmp/pytest.log
+        exit 1
+    fi
+    print_success "tests passed"
+
     print_success "All build checks passed"
 }
 
@@ -236,8 +244,8 @@ main() {
     print_success "Release $new_version created"
     print_info ""
     print_info "GitHub Actions will now build and publish:"
-    print_info "  - styliteag/birdseye:$new_version"
-    print_info "  - ghcr.io/styliteag/birdseye:$new_version"
+    print_info "  - styliteag/birdseye:$new_version, styliteag/birdseye-web:$new_version"
+    print_info "  - ghcr.io/styliteag/birdseye:$new_version, ghcr.io/styliteag/birdseye-web:$new_version"
     print_info ""
     local repo_slug
     repo_slug=$(git config --get remote.origin.url | sed 's/.*github.com[/:]//g' | sed 's/.git$//')

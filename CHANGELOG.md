@@ -8,7 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
--
+- **birdseye-web**, a second image (`styliteag/birdseye-web`): a web UI that
+  shows who can reach what and edits groups and policies. Setup:
+  [docs/web-ui.md](docs/web-ui.md).
+  - Sign-in with your own NetBird account through the embedded IdP
+    (`netbird-dashboard` client, authorization code + PKCE). Every API call
+    carries your token, so NetBird enforces your role and its audit log names
+    you. Requires registering the callback URL in `dashboardRedirectURIs`.
+  - Access matrix in five views (Group × Group, Peer × Peer, Group × Resource,
+    Peer × Resource, User × Destination) with name/protocol/port filters and a
+    per-cell explanation of which policy grants the access.
+  - Edit from the matrix: revoke (remove a group from a rule, disable, delete)
+    or grant access from a cell; every change previews the peer pairs that gain
+    or lose access before it is confirmed.
+  - Group editor (create, rename, membership) and multi-rule policy editor
+    (`netbird-ssh`, port ranges, posture checks, resource/peer destinations),
+    both with a live gained/lost preview. Policy writes use raw dicts, so the
+    SDK's protocol enum is not in the way; SSH `authorized_groups` survive edits.
+  - Reachability query ("can X reach Y on tcp/22?") with the reasons.
+  - Anomalies page: rules targeting single peers or resources, devices whose
+    groups drifted from their user's auto-groups, peers inside resource groups,
+    empty or missing groups in policies, resources without router or policy,
+    peers only in All, unused groups, disabled policies.
+    `WEB_ANOMALY_IGNORE` skips groups by name (e.g. documentation groups).
+- The release workflow builds and publishes both images (amd64 + arm64).
+- `.dockerignore`, so a local `.env` never enters a build context.
+- `pytest` suite for the web UI; `release.sh` runs it before tagging.
 
 ## [0.4.1] - 2026-08-10
 

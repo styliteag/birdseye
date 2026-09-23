@@ -1,9 +1,14 @@
+# birdseye-web — access matrix and group/policy editor. Setup: docs/web-ui.md
+#
+#   cp .env.example .env   # fill in WEB_NB_URL, WEB_BASE_URL, WEB_SESSION_SECRET
+#   docker compose up -d
 services:
   birdseye-web:
-    build:
-      context: ../..
-      dockerfile: docker/web/Dockerfile
-    image: birdseye-web:latest
+    image: styliteag/birdseye-web:${BIRDSEYE_WEB_TAG:-latest}
+    # To build from this checkout instead of pulling:
+    # build:
+    #   context: ../..
+    #   dockerfile: docker/web/Dockerfile
     container_name: birdseye-web
     restart: unless-stopped
     read_only: true
@@ -18,7 +23,7 @@ services:
       WEB_BASE_URL: ${WEB_BASE_URL:?set WEB_BASE_URL, e.g. https://birdseye.example.com}
       # >= 32 random characters: openssl rand -hex 32
       WEB_SESSION_SECRET: ${WEB_SESSION_SECRET:?set WEB_SESSION_SECRET}
-      # Must be registered in NetBird's embedded IdP (see README, "Web UI"):
+      # Must be registered in NetBird's embedded IdP (docs/web-ui.md, step 1):
       #   <WEB_BASE_URL><WEB_REDIRECT_PATH>
       WEB_REDIRECT_PATH: ${WEB_REDIRECT_PATH:-/auth/callback}
       WEB_OIDC_CLIENT_ID: ${WEB_OIDC_CLIENT_ID:-netbird-dashboard}
@@ -29,5 +34,6 @@ services:
       WEB_ANOMALY_IGNORE: ${WEB_ANOMALY_IGNORE:-}
       TZ: ${TZ:-UTC}
     ports:
-      # Bind to localhost and publish through the reverse proxy (TLS).
+      # Localhost only; publish through your reverse proxy (TLS).
       - "127.0.0.1:${WEB_PORT:-8080}:8080"
+    # Sessions live in process memory: run exactly one replica.
