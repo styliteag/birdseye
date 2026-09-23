@@ -42,7 +42,8 @@ h4 { font-size: 13px; margin: 12px 0 6px; }
         border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
 
 main { max-width: 1280px; margin: 0 auto; padding: 20px; }
-main.wide { max-width: none; }
+main.wide { max-width: none; height: calc(100vh - 52px); display: flex; flex-direction: column; overflow: hidden; padding-bottom: 12px; }
+main.wide > .flash { flex: none; }
 
 /* --- controls ------------------------------------------------------------------------ */
 input, select, button { font: inherit; color: inherit; }
@@ -98,12 +99,14 @@ table.list td.arrow { color: var(--muted); text-align: center; width: 24px; }
 .switch.on span { left: 16px; }
 
 /* --- matrix --------------------------------------------------------------------------------- */
-.matrix-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+.matrix-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; flex: 1; min-height: 0; }
+.matrix-main { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.matrix-main > #matrix { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .filters { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 8px; }
 .tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
 .tab { padding: 5px 12px; border-radius: 16px; border: 1px solid var(--line); cursor: pointer; color: var(--muted); }
 .tab input { display: none; }
-.tab.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.tab:has(input:checked) { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .filter-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 .filter-row > label:not(.check) { display: flex; align-items: center; gap: 6px; color: var(--muted); }
 .filter-row input[type=search] { width: 200px; }
@@ -112,7 +115,7 @@ table.list td.arrow { color: var(--muted); text-align: center; width: 24px; }
 .matrix-meta { font-size: 12px; color: var(--muted); margin: 0 2px 6px; }
 .warn { color: var(--warn); }
 
-.matrix-scroll { overflow: auto; max-height: calc(100vh - 250px); background: var(--panel);
+.matrix-scroll { overflow: auto; flex: 1; min-height: 0; background: var(--panel);
                  border: 1px solid var(--line); border-radius: var(--radius); }
 table.matrix { border-collapse: separate; border-spacing: 0; font-size: 12px; }
 table.matrix th, table.matrix td { border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); }
@@ -130,19 +133,21 @@ table.matrix td { width: 34px; height: 26px; padding: 2px; text-align: center; }
 table.matrix tbody tr:hover th.row, table.matrix tbody tr:hover td { background-color: var(--hl); }
 table.matrix .hl { background-color: var(--hl); }
 
-.cell { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 20px; padding: 0 3px;
+.cell { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 20px; padding: 0 3px;
         font: 600 10px/1 var(--mono); border-radius: 4px; border: 1px solid transparent; cursor: pointer; }
 .cell.c-all { background: var(--all); color: #fff; }
 .cell.c-ports { background: var(--ports); color: #fff; }
 .cell.c-icmp { background: var(--icmp); color: var(--ink); }
 .cell.c-ssh { background: var(--ssh); color: #fff; }
 .cell.c-deny { background: var(--deny); color: #fff; }
-.cell.c-cond { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.35) 0 3px, transparent 3px 6px);
-               border: 1px dashed var(--cond); }
+/* posture-gated: small corner marker instead of a hatch, which got noisy
+   when most policies carry a posture check */
+.cell.c-cond::after { content: ""; position: absolute; top: -1px; right: -1px; width: 0; height: 0;
+  border-top: 7px solid var(--cond); border-left: 7px solid transparent; border-top-right-radius: 4px; }
 .cell.sel { outline: 2px solid var(--ink); outline-offset: 1px; }
 
-.detail { position: sticky; top: 68px; background: var(--panel); border: 1px solid var(--line);
-          border-radius: var(--radius); padding: 14px; max-height: calc(100vh - 88px); overflow: auto; }
+.detail { background: var(--panel); border: 1px solid var(--line);
+          border-radius: var(--radius); padding: 14px; min-height: 0; overflow: auto; }
 .detail-title { font-size: 15px; margin: 0 0 8px; }
 .arrow { color: var(--muted); }
 .grants { list-style: none; padding: 0; margin: 0; }
@@ -200,6 +205,8 @@ h4.loss { color: var(--deny); }
 
 @media (max-width: 1000px) {
   .matrix-layout, .split { grid-template-columns: 1fr; }
+  main.wide { height: auto; overflow: visible; }
+  .matrix-scroll { max-height: 75vh; }
   .detail, .sticky { position: static; max-height: none; }
   .flow { grid-template-columns: 1fr; }
   .flow-arrow { padding: 0; transform: rotate(90deg); }
