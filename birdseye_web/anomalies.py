@@ -68,6 +68,12 @@ CHECKS = (
         "No enabled routing peer serves this network, so policies to it cannot work.",
     ),
     Check(
+        "unreachable-resource",
+        "Resource no policy reaches",
+        "The resource is routed, but no enabled policy targets it – neither directly nor "
+        "through one of its groups – so nobody can use it.",
+    ),
+    Check(
         "only-all",
         "Peer only in “All”",
         "The peer is in no group of its own, so only rules on “All” apply to it.",
@@ -184,15 +190,46 @@ def _only_all(snap: Snapshot) -> Iterator[Finding]:
             yield Finding("only-all", "info", f"{p.name} is only in “All”")
 
 
+def _targeted_resources(snap: Snapshot) -> frozenset[str]:
+    """Resources some enabled rule can reach, directly or through a group."""
+    hit: set[str] = set()
+    for pol in snap.policies.values():
+        if not pol.enabled:
+            continue
+        for r in pol.rules:
+            if not r.enabled:
+                continue
+            refs = [x for x in (r.destination_ref, r.source_ref) if x and x.kind == "resource"]
+            hit |= {x.id for x in refs}
+            for gid in (*r.destination_group_ids, *r.source_group_ids):
+                hit |= {m.id for m in group_members(snap, gid) if m.kind == "resource"}
+    return frozenset(hit)
+
+
+def _unreachable_resources(snap: Snapshot) -> Iterator[Finding]:
+    targeted = _targeted_resources(snap)
+    for res in sorted(snap.resources.values(), key=lambda r: r.name.lower()):
+        if res.enabled and res.id not in targeted:
+            yield Finding("unreachable-resource", "warning", f"{res.name} ({res.address})")
+
+
 def _unused_groups(snap: Snapshot) -> Iterator[Finding]:
     used = {gid for _, _, gid in _policy_group_refs(snap)}
     used |= {g for u in snap.users.values() for g in u.auto_groups}
     used |= snap.setup_key_group_ids
     used |= {g for n in snap.networks.values() for g in n.router_group_ids}
+    targeted = _targeted_resources(snap)
     for g in sorted(snap.groups.values(), key=lambda g: g.name.lower()):
-        if g.id not in used and not g.is_all:
-            n = len(g.peer_ids) + len(g.resource_ids)
-            yield Finding("unused-group", "info", f"{g.name} ({n} members)", link=f"/groups/{g.id}")
+        if g.id in used or g.is_all:
+            continue
+        # A Networks resource group whose resources policies already reach
+        # directly is bookkeeping, not dead weight (NetBird wants every resource
+        # in a group). Resources nobody reaches get their own finding.
+        res = {m.id for m in group_members(snap, g.id) if m.kind == "resource"}
+        if res and res <= targeted and not g.peer_ids:
+            continue
+        n = len(g.peer_ids) + len(g.resource_ids)
+        yield Finding("unused-group", "info", f"{g.name} ({n} members)", link=f"/groups/{g.id}")
 
 
 def _disabled(snap: Snapshot) -> Iterator[Finding]:
@@ -214,6 +251,7 @@ def find_anomalies(snap: Snapshot) -> tuple[Finding, ...]:
         *_device_deviation(snap),
         *_empty_groups(snap),
         *_no_router(snap),
+        *_unreachable_resources(snap),
         *_only_all(snap),
         *_unused_groups(snap),
         *_disabled(snap),

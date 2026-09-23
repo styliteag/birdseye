@@ -136,3 +136,47 @@ def test_setup_key_and_router_groups_count_as_used():
     )
     unused = [f.title.split(" ")[0] for f in _by(find_anomalies(s), "unused-group")]
     assert unused == ["Lost"]
+
+
+def test_resource_group_is_not_unused_when_resource_is_targeted_directly():
+    s = snap(
+        groups=[group("A", peers=["a1"]), group("RG", resources=["r1"])],
+        peers=[peer("a1", ["A"])],
+        resources=[resource("r1", ["RG"])],
+        policies=[policy("p", rule(["A"], dst_resource={"id": "r1", "type": "subnet"}))],
+    )
+    found = find_anomalies(s)
+    assert "RG" not in [f.title.split(" ")[0] for f in _by(found, "unused-group")]
+    assert _by(found, "unreachable-resource") == []
+
+
+def test_resource_nobody_reaches_is_flagged_and_its_group_stays_unused():
+    s = snap(
+        groups=[group("RG", resources=["r1"])],
+        resources=[resource("r1", ["RG"])],
+    )
+    found = find_anomalies(s)
+    assert [f.title.split(" ")[0] for f in _by(found, "unreachable-resource")] == ["r1"]
+    assert [f.title.split(" ")[0] for f in _by(found, "unused-group")] == ["RG"]
+
+
+def test_resource_reached_through_group_counts():
+    s = snap(
+        groups=[group("A", peers=["a1"]), group("RG", resources=["r1"])],
+        peers=[peer("a1", ["A"])],
+        resources=[resource("r1", ["RG"])],
+        policies=[policy("p", rule(["A"], ["RG"]))],
+    )
+    assert _by(find_anomalies(s), "unreachable-resource") == []
+
+
+def test_disabled_policy_does_not_reach_resource():
+    s = snap(
+        groups=[group("A", peers=["a1"])],
+        peers=[peer("a1", ["A"])],
+        resources=[resource("r1")],
+        policies=[
+            policy("p", rule(["A"], dst_resource={"id": "r1", "type": "subnet"}), enabled=False)
+        ],
+    )
+    assert len(_by(find_anomalies(s), "unreachable-resource")) == 1
