@@ -76,6 +76,12 @@ CHECKS = (
         "through one of its groups – so nobody can use it.",
     ),
     Check(
+        "mixed-group",
+        "Peer inside a resource group",
+        "The group holds network resources and also peers. Every policy that targets the "
+        "group now targets those peers too – usually a peer that was meant for a router group.",
+    ),
+    Check(
         "only-all",
         "Peer only in “All”",
         "The peer is in no group of its own, so only rules on “All” apply to it.",
@@ -216,6 +222,23 @@ def _unreachable_resources(snap: Snapshot) -> Iterator[Finding]:
             yield Finding("unreachable-resource", "warning", f"{res.name} ({res.address})")
 
 
+def _mixed_groups(snap: Snapshot) -> Iterator[Finding]:
+    for g in sorted(snap.groups.values(), key=lambda g: g.name.lower()):
+        if g.is_all:
+            continue
+        members = group_members(snap, g.id)
+        peers = sorted(snap.endpoint_name(m) for m in members if m.kind == "peer")
+        if peers and any(m.kind == "resource" for m in members):
+            yield Finding(
+                "mixed-group",
+                "warning",
+                f"{g.name}",
+                detail="peers: " + ", ".join(peers),
+                link=f"/groups/{g.id}",
+                group_id=g.id,
+            )
+
+
 def _unused_groups(snap: Snapshot) -> Iterator[Finding]:
     used = {gid for _, _, gid in _policy_group_refs(snap)}
     used |= {g for u in snap.users.values() for g in u.auto_groups}
@@ -229,7 +252,7 @@ def _unused_groups(snap: Snapshot) -> Iterator[Finding]:
         # directly is bookkeeping, not dead weight (NetBird wants every resource
         # in a group). Resources nobody reaches get their own finding.
         res = {m.id for m in group_members(snap, g.id) if m.kind == "resource"}
-        if res and res <= targeted and not g.peer_ids:
+        if res and res <= targeted:
             continue
         n = len(g.peer_ids) + len(g.resource_ids)
         yield Finding(
@@ -259,6 +282,7 @@ def find_anomalies(snap: Snapshot, ignore: re.Pattern[str] | None = None) -> tup
         *_empty_groups(snap),
         *_no_router(snap),
         *_unreachable_resources(snap),
+        *_mixed_groups(snap),
         *_only_all(snap),
         *_unused_groups(snap),
         *_disabled(snap),

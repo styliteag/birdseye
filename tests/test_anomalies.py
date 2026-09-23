@@ -188,3 +188,16 @@ def test_ignore_pattern_hides_group_findings():
     s = snap(groups=[group("Z002 Short forms: -RG=ResourceGroup"), group("Real-Unused")])
     titles = [f.title for f in find_anomalies(s, re.compile(r"^Z\d{3} "))]
     assert titles == ["Real-Unused (0 members)"]
+
+
+def test_peer_in_resource_group_is_mixed_not_unused():
+    s = snap(
+        groups=[group("A", peers=["a1"]), group("RG", peers=["mini"], resources=["r1"])],
+        peers=[peer("a1", ["A"]), peer("mini", ["RG"])],
+        resources=[resource("r1", ["RG"])],
+        policies=[policy("p", rule(["A"], dst_resource={"id": "r1", "type": "subnet"}))],
+    )
+    found = find_anomalies(s)
+    assert _by(found, "unused-group") == []
+    [hit] = _by(found, "mixed-group")
+    assert hit.title == "RG" and "mini" in hit.detail
