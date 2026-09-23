@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Policies{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Policies <span class="count">{{ policies|length }}</span></h1>
+  <input type="search" name="q" value="{{ q }}" placeholder="Search name or description…"
+         hx-get="/policies" hx-target="#policy-rows" hx-trigger="input changed delay:250ms" hx-push-url="true">
+  {% if session.can('policies', 'create') %}<a class="button primary" href="/policies/new">+ New policy</a>{% endif %}
+</div>
+<table class="list">
+  <thead><tr><th></th><th>Name</th><th>Source</th><th></th><th>Destination</th><th>Service</th><th>Posture</th></tr></thead>
+  <tbody id="policy-rows">{% include "_policy_rows.html" %}</tbody>
+</table>
+{% endblock %}

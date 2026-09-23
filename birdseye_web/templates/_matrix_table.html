@@ -1,0 +1,44 @@
+<div class="matrix-meta">
+  <strong>{{ m.rows|length }}</strong> {{ view.rows|lower }} × <strong>{{ m.cols|length }}</strong> {{ view.cols|lower }},
+  {{ m.cells|length }} allowed relations
+  {% if m.truncated %}<span class="warn">· truncated – narrow the filters</span>{% endif %}
+</div>
+{% if not m.rows %}
+  <p class="empty">No access for these filters.</p>
+{% else %}
+<div class="matrix-scroll">
+<table class="matrix" data-view="{{ view.key }}">
+  <thead>
+    <tr>
+      <th class="corner"><span>{{ view.rows }} ↓ / {{ view.cols }} →</span></th>
+      {% for c in m.cols %}
+      <th class="col" data-col="{{ c.key }}" title="{{ c.label }}{% if c.sub %} · {{ c.sub }}{% endif %}">
+        <div><span>{% if c.key.startswith('r:') %}▣ {% elif c.key.startswith('p:') %}• {% endif %}{{ c.label }}</span></div>
+      </th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in m.rows %}
+    <tr>
+      <th class="row" data-row="{{ r.key }}" title="{{ r.sub }}">
+        {% if r.key.startswith('g:') %}<a href="/groups/{{ r.key[2:] }}">{{ r.label }}</a>{% else %}{{ r.label }}{% endif %}
+        {% if r.sub %}<small>{{ r.sub }}</small>{% endif %}
+      </th>
+      {% for c in m.cols %}
+        {% set cell = m.cells.get((r.key, c.key)) %}
+        {% if cell %}
+        <td class="hit" data-col="{{ c.key }}">
+          <button class="cell {{ cell|cell_class }}"
+                  hx-get="/matrix/cell?row={{ r.key|urlencode }}&col={{ c.key|urlencode }}&{{ query }}"
+                  hx-target="#detail"
+                  title="{{ r.label }} → {{ c.label }}: {{ cell.service_labels|join(', ') }}{% if cell.conditional %} (posture-gated){% endif %}">{{ cell|cell_short }}</button>
+        </td>
+        {% else %}<td data-col="{{ c.key }}"></td>{% endif %}
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}

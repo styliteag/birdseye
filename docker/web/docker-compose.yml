@@ -1,0 +1,30 @@
+services:
+  birdseye-web:
+    build:
+      context: ../..
+      dockerfile: docker/web/Dockerfile
+    image: birdseye-web:latest
+    container_name: birdseye-web
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      # NetBird management URL (the API is called as the logged-in user).
+      WEB_NB_URL: ${WEB_NB_URL:?set WEB_NB_URL, e.g. https://netbird.example.com}
+      # Public URL of this UI, as the browser sees it (behind your reverse proxy).
+      WEB_BASE_URL: ${WEB_BASE_URL:?set WEB_BASE_URL, e.g. https://birdseye.example.com}
+      # >= 32 random characters: openssl rand -hex 32
+      WEB_SESSION_SECRET: ${WEB_SESSION_SECRET:?set WEB_SESSION_SECRET}
+      # Must be registered in NetBird's embedded IdP (see README, "Web UI"):
+      #   <WEB_BASE_URL><WEB_REDIRECT_PATH>
+      WEB_REDIRECT_PATH: ${WEB_REDIRECT_PATH:-/auth/callback}
+      WEB_OIDC_CLIENT_ID: ${WEB_OIDC_CLIENT_ID:-netbird-dashboard}
+      WEB_CACHE_TTL: ${WEB_CACHE_TTL:-30}
+      WEB_SESSION_HOURS: ${WEB_SESSION_HOURS:-12}
+      TZ: ${TZ:-UTC}
+    ports:
+      # Bind to localhost and publish through the reverse proxy (TLS).
+      - "127.0.0.1:${WEB_PORT:-8080}:8080"

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Signed out{% endblock %}
+{% block content %}
+<div class="card narrow-card">
+  <h1>Signed out</h1>
+  <p class="muted">Your birdseye session has ended. You are still signed in to NetBird in this browser, so the next sign-in skips the password.</p>
+  <p>
+    <a class="button primary" href="/login">Sign in again</a>
+    {% if end_session %}<a class="button" href="{{ end_session }}">Also sign out of NetBird</a>{% endif %}
+  </p>
+</div>
+{% endblock %}

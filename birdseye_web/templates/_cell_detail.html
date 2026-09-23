@@ -1,0 +1,28 @@
+{% if not cell %}
+  <p class="muted">No access.</p>
+{% else %}
+<h3 class="detail-title">{{ row.label if row else '?' }} <span class="arrow">→</span> {{ col.label if col else '?' }}</h3>
+<p class="services">
+  {% for s in cell.service_labels %}<span class="pill">{{ s }}</span>{% endfor %}
+  {% if cell.conditional %}<span class="pill cond">posture-gated</span>{% endif %}
+</p>
+{% if via and view.key in ('users', 'resources') %}
+  <p class="muted small">via: {{ via|join(', ') }}</p>
+{% endif %}
+<h4>Allowed by</h4>
+<ul class="grants">
+  {% for it in items %}
+  <li>
+    <a href="/policies/{{ it.grant.policy_id }}" class="pol">{{ it.policy.name if it.policy else it.grant.policy_id }}</a>
+    {% if it.rule and it.rule.name != (it.policy.name if it.policy else '') %}<span class="muted">/ {{ it.rule.name }}</span>{% endif %}
+    <div class="small">
+      <span class="pill">{{ it.grant.service.label() }}</span>
+      {% if it.grant.reverse %}<span class="pill">return path (bidirectional)</span>{% endif %}
+      {% if it.grant.action == 'drop' %}<span class="pill deny">DROP</span>{% endif %}
+      {% for p in it.posture %}<span class="pill cond">{{ p }}</span>{% endfor %}
+    </div>
+    {% if it.policy and it.policy.description %}<p class="muted small">{{ it.policy.description }}</p>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}

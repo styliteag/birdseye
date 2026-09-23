@@ -1,0 +1,27 @@
+{% macro gname(gid) %}{{ snap.groups[gid].name if gid in snap.groups else gid }}{% endmacro %}
+{% for p in policies %}
+  {% for r in p.rules %}
+  <tr class="{{ 'off' if not (p.enabled and r.enabled) }}">
+    {% if loop.first %}
+    <td rowspan="{{ p.rules|length }}">
+      <form method="post" action="/policies/{{ p.id }}/toggle">
+        <input type="hidden" name="csrf" value="{{ session.csrf }}">
+        <button class="switch {{ 'on' if p.enabled }}" title="{{ 'enabled – click to disable' if p.enabled else 'disabled – click to enable' }}"
+                data-confirm="{{ 'Disable' if p.enabled else 'Enable' }} policy “{{ p.name }}”?"><span></span></button>
+      </form>
+    </td>
+    <td rowspan="{{ p.rules|length }}"><a href="/policies/{{ p.id }}">{{ p.name }}</a>
+      {% if p.description %}<div class="muted small">{{ p.description|truncate(90) }}</div>{% endif %}</td>
+    {% endif %}
+    <td>{% for g in r.source_group_ids %}<span class="chip">{{ gname(g) }}</span>{% endfor %}{% if r.source_ref %}<span class="chip ref">{{ snap.endpoint_name(r.source_ref) }}</span>{% endif %}</td>
+    <td class="arrow">{{ '⇄' if r.bidirectional else '→' }}</td>
+    <td>{% for g in r.destination_group_ids %}<span class="chip">{{ gname(g) }}</span>{% endfor %}{% if r.destination_ref %}<span class="chip ref">▣ {{ snap.endpoint_name(r.destination_ref) }}</span>{% endif %}</td>
+    <td><span class="pill">{{ r.service.label() }}</span>{% if r.action == 'drop' %} <span class="pill deny">DROP</span>{% endif %}</td>
+    {% if loop.first %}
+    <td rowspan="{{ p.rules|length }}">{% for c in p.posture_check_ids %}<span class="pill cond">{{ snap.posture_checks[c].name if c in snap.posture_checks else c }}</span>{% endfor %}</td>
+    {% endif %}
+  </tr>
+  {% endfor %}
+{% else %}
+<tr><td colspan="7" class="empty">No policy found.</td></tr>
+{% endfor %}

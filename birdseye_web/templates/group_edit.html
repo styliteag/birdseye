@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}{{ group.name if group else 'New group' }}{% endblock %}
+{% block content %}
+{% set readonly = group and group.is_all %}
+<p class="crumbs"><a href="/groups">Groups</a> /</p>
+<h1>{{ group.name if group else 'New group' }}</h1>
+{% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+{% if readonly %}<div class="flash info">“All” is maintained by NetBird and cannot be edited.</div>{% endif %}
+
+<div class="split">
+  <form id="group-form" class="card" method="post" action="{{ '/groups/' ~ group.id if group else '/groups' }}">
+    <input type="hidden" name="csrf" value="{{ session.csrf }}">
+    <label class="block">Name
+      <input name="name" value="{{ name }}" required {% if readonly %}disabled{% endif %}>
+    </label>
+
+    <fieldset class="picklist" data-picklist>
+      <legend>Peers <span class="muted" data-count>{{ selected|length }} selected</span></legend>
+      <div class="picklist-tools">
+        <input type="search" placeholder="Filter by peer, IP or OS…" data-filter>
+        <label class="check"><input type="checkbox" data-only-selected> selected only</label>
+      </div>
+      <div class="picklist-items">
+        {% for p in peers %}
+        <label class="pick" data-text="{{ p.name|lower }} {{ p.ip }} {{ p.os|lower }}">
+          <input type="checkbox" name="peers" value="{{ p.id }}" {% if p.id in selected %}checked{% endif %} {% if readonly %}disabled{% endif %}>
+          <span class="dot {{ 'on' if p.connected else 'off' }}" title="{{ 'online' if p.connected else 'offline' }}"></span>
+          <span class="name">{{ p.name }}</span>
+          <span class="muted small">{{ p.ip }}{% if p.user_id in snap.users %} · {{ snap.users[p.user_id].label }}{% endif %}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    {% if group and group.resource_ids %}
+    <p class="muted small">Also contains {{ group.resource_ids|length }} network resource(s). They are kept when you save.</p>
+    {% endif %}
+
+    {% if not readonly %}
+    <div class="actions">
+      <button class="primary">{{ 'Save' if group else 'Create' }}</button>
+      {% if group %}
+      <button class="danger" formaction="/groups/{{ group.id }}/delete"
+              data-confirm="Delete group “{{ group.name }}”? Policies that use it lose this source/destination.">Delete</button>
+      {% endif %}
+    </div>
+    {% endif %}
+  </form>
+
+  {% if group %}
+  <div class="side">
+    {% if not readonly %}
+    <section class="card">
+      <h3>Effect of this change</h3>
+      <div id="delta" hx-post="/groups/{{ group.id }}/preview" hx-include="#group-form"
+           hx-trigger="change from:#group-form delay:200ms">
+        <p class="muted small">Change the selection to see who gains or loses access.</p>
+      </div>
+    </section>
+    {% endif %}
+    <section class="card">
+      <h3>This group can access</h3>
+      {% for c, cell in reach.out %}
+        <div class="reach-line"><span>{{ c.label }}</span> {% for s in cell.service_labels %}<span class="pill">{{ s }}</span>{% endfor %}</div>
+      {% else %}<p class="muted small">nothing</p>{% endfor %}
+      <h3>Who can access this group</h3>
+      {% for r, cell in reach.in %}
+        <div class="reach-line"><span>{{ r.label }}</span> {% for s in cell.service_labels %}<span class="pill">{{ s }}</span>{% endfor %}</div>
+      {% else %}<p class="muted small">nobody</p>{% endfor %}
+    </section>
+    <section class="card">
+      <h3>Used in policies</h3>
+      {% for p in policies %}<div><a href="/policies/{{ p.id }}">{{ p.name }}</a>{% if not p.enabled %} <span class="pill">off</span>{% endif %}</div>
+      {% else %}<p class="muted small">none</p>{% endfor %}
+    </section>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

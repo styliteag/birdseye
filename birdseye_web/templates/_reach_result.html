@@ -1,0 +1,24 @@
+{% if asked %}
+  {% if rows %}
+  <div class="verdict yes">✔ <strong>{{ src_label }}</strong> can reach <strong>{{ dst_label }}</strong>{% if proto %} via {{ proto }}{% endif %}{% if port %} on port {{ port }}{% endif %}</div>
+  <table class="list">
+    <thead><tr><th>Policy</th><th>Service</th><th>Source via</th><th>Destination via</th><th>Notes</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td><a href="/policies/{{ r.edge.grant.policy_id }}">{{ r.policy.name if r.policy else r.edge.grant.policy_id }}</a></td>
+        <td><span class="pill">{{ r.edge.grant.service.label() }}</span></td>
+        <td>{{ r.src_group }}</td>
+        <td>{{ r.dst_group }}</td>
+        <td>
+          {% if r.edge.grant.reverse %}<span class="pill">bidirectional</span>{% endif %}
+          {% if r.edge.grant.conditional %}<span class="pill cond">posture-gated</span>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="verdict no">✘ No policy allows <strong>{{ src_label }}</strong> → <strong>{{ dst_label }}</strong>{% if proto %} via {{ proto }}{% endif %}{% if port %} on port {{ port }}{% endif %}.</div>
+  {% endif %}
+{% endif %}

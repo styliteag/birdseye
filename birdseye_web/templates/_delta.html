@@ -1,0 +1,22 @@
+{% if error %}
+  <p class="flash err small">{{ error }}</p>
+{% elif delta.empty %}
+  <p class="muted small">No change in who can reach what.</p>
+{% else %}
+  {% macro line(a) %}
+    <li><span>{{ snap.endpoint_name(a.src) }}</span> <span class="arrow">→</span>
+        <span>{% if a.dst.kind == 'resource' %}▣ {% endif %}{{ snap.endpoint_name(a.dst) }}</span>
+        <span class="pill">{{ a.service }}</span></li>
+  {% endmacro %}
+  {% if delta.gained %}
+  <h4 class="gain">+ {{ delta.gained|length }} gained</h4>
+  <ul class="delta">{% for a in delta.gained[:limit] %}{{ line(a) }}{% endfor %}</ul>
+  {% if delta.gained|length > limit %}<p class="muted small">… and {{ delta.gained|length - limit }} more</p>{% endif %}
+  {% endif %}
+  {% if delta.lost %}
+  <h4 class="loss">− {{ delta.lost|length }} lost</h4>
+  <ul class="delta">{% for a in delta.lost[:limit] %}{{ line(a) }}{% endfor %}</ul>
+  {% if delta.lost|length > limit %}<p class="muted small">… and {{ delta.lost|length - limit }} more</p>{% endif %}
+  {% endif %}
+  <p class="muted small">Peer-level, per service. Not saved yet.</p>
+{% endif %}

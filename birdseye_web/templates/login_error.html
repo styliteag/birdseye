@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Error{% endblock %}
+{% block content %}
+<div class="card narrow-card">
+  <h1>Something went wrong</h1>
+  <p class="flash err">{{ message }}</p>
+  <p><a class="button primary" href="/login">Sign in again</a> <a class="button" href="/matrix">Back to matrix</a></p>
+</div>
+{% endblock %}

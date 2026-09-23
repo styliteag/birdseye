@@ -1,0 +1,10 @@
+{% for g in groups %}
+<tr>
+  <td><a href="/groups/{{ g.id }}">{{ g.name }}</a>{% if g.is_all %} <span class="pill">system</span>{% endif %}{% if g.issued != 'api' %} <span class="pill">{{ g.issued }}</span>{% endif %}</td>
+  <td class="num">{{ g.peer_ids|length }}</td>
+  <td class="num">{{ g.resource_ids|length or '' }}</td>
+  <td class="num">{% if usage[g.id] %}{{ usage[g.id] }}{% else %}<span class="muted">unused</span>{% endif %}</td>
+</tr>
+{% else %}
+<tr><td colspan="4" class="empty">No group found.</td></tr>
+{% endfor %}

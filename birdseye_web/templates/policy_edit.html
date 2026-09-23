@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ policy.name or 'New policy' }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="/policies">Policies</a> /</p>
+<h1>{{ policy.name or 'New policy' }}</h1>
+{% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+
+<div class="split">
+  <form id="policy-form" class="card" method="post" action="{{ '/policies/' ~ pid if pid else '/policies' }}">
+    <input type="hidden" name="csrf" value="{{ session.csrf }}">
+    <input type="hidden" name="pid" value="{{ pid }}">
+    <div class="grid2">
+      <label class="block">Name <input name="name" value="{{ policy.name }}" required></label>
+      <label class="check big"><input type="checkbox" name="enabled" {% if policy.enabled %}checked{% endif %}> Enabled</label>
+    </div>
+    <label class="block">Description <input name="description" value="{{ policy.description }}"></label>
+
+    <fieldset>
+      <legend>Posture checks <span class="muted small">(applied to sources)</span></legend>
+      <div class="chips-select">
+        {% for c in posture_checks %}
+        <label class="chip-toggle"><input type="checkbox" name="posture" value="{{ c.id }}" {% if c.id in policy.source_posture_checks %}checked{% endif %}> {{ c.name }}</label>
+        {% else %}<span class="muted small">none defined</span>{% endfor %}
+      </div>
+    </fieldset>
+
+    <div id="rules">
+      {% for r in policy.rules %}
+        {% set idx = loop.index0 %}
+        {% include "_rule_fields.html" %}
+      {% endfor %}
+    </div>
+    <button type="button" class="secondary" data-add-rule>+ Add rule</button>
+
+    <div class="actions">
+      <button class="primary">{{ 'Save' if pid else 'Create' }}</button>
+      {% if pid %}
+      <button class="danger" formaction="/policies/{{ pid }}/delete"
+              data-confirm="Delete policy “{{ policy.name }}”? The access shown on the right will be lost.">Delete</button>
+      {% endif %}
+    </div>
+  </form>
+
+  <div class="side">
+    <section class="card sticky">
+      <h3>Effect</h3>
+      <div id="delta" hx-post="/policies/preview" hx-include="#policy-form"
+           hx-trigger="load, change from:#policy-form delay:250ms, input from:#policy-form delay:600ms">
+        <p class="muted small">Calculating…</p>
+      </div>
+      {% if pid %}
+      <details class="small" data-lazy>
+        <summary>What is lost if this policy is deleted?</summary>
+        <div hx-post="/policies/{{ pid }}/delete-preview" hx-trigger="lazy-open once"></div>
+      </details>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

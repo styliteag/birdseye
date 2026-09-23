@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "historyCacheSize": 0}'>
+  <title>{% block title %}birdseye{% endblock %} · birdseye</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/htmx.min.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body {% if session %}hx-headers='{"X-CSRF-Token": "{{ session.csrf }}"}'{% endif %}>
+  <header class="top">
+    <a class="brand" href="/matrix"><span class="logo">◉</span> birdseye</a>
+    {% if session %}
+    <nav>
+      {% set p = request.url.path %}
+      <a href="/matrix" {% if p.startswith('/matrix') %}aria-current="page"{% endif %}>Matrix</a>
+      <a href="/reach" {% if p.startswith('/reach') %}aria-current="page"{% endif %}>Reachability</a>
+      <a href="/groups" {% if p.startswith('/groups') %}aria-current="page"{% endif %}>Groups</a>
+      <a href="/policies" {% if p.startswith('/policies') %}aria-current="page"{% endif %}>Policies</a>
+    </nav>
+    <div class="who">
+      <span title="{{ session.user_id }}">{{ session.user_name }}</span>
+      <span class="role">{{ session.role }}</span>
+      <form method="post" action="/logout"><input type="hidden" name="csrf" value="{{ session.csrf }}"><button class="link">Sign out</button></form>
+    </div>
+    {% endif %}
+  </header>
+  <main class="{% block main_class %}{% endblock %}">
+    {% if request.query_params.get('saved') %}<div class="flash ok">Saved.</div>{% endif %}
+    {% if request.query_params.get('deleted') %}<div class="flash ok">Deleted.</div>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

@@ -57,6 +57,9 @@ class MatrixFilter:
     max_cols: int = 300
 
 
+NO_FILTER = MatrixFilter()
+
+
 @dataclass(frozen=True)
 class Matrix:
     rows: tuple[Axis, ...]
@@ -153,7 +156,7 @@ def _collector():
 # --- views -----------------------------------------------------------------------
 
 
-def group_matrix(snap: Snapshot, grant_list, flt: MatrixFilter = MatrixFilter()) -> Matrix:
+def group_matrix(snap: Snapshot, grant_list, flt: MatrixFilter = NO_FILTER) -> Matrix:
     """Declared view: rule source groups x rule destination groups/refs."""
     raw = _collector()
     for g in _filter_grants(grant_list, flt, snap):
@@ -179,12 +182,12 @@ def _edge_view(snap, grant_list, flt, row_of, dst_kind: str | None = None) -> Ma
     return _assemble(snap, raw, flt)
 
 
-def peer_matrix(snap: Snapshot, grant_list, flt: MatrixFilter = MatrixFilter()) -> Matrix:
+def peer_matrix(snap: Snapshot, grant_list, flt: MatrixFilter = NO_FILTER) -> Matrix:
     return _edge_view(snap, grant_list, flt, lambda e: (ref_key(e.src),))
 
 
 def resource_matrix(
-    snap: Snapshot, grant_list, by: str = "group", flt: MatrixFilter = MatrixFilter()
+    snap: Snapshot, grant_list, by: str = "group", flt: MatrixFilter = NO_FILTER
 ) -> Matrix:
     """Who reaches network resources; rows are rule source groups or peers."""
     if by == "peer":
@@ -198,7 +201,7 @@ def resource_matrix(
     )
 
 
-def user_matrix(snap: Snapshot, grant_list, flt: MatrixFilter = MatrixFilter()) -> Matrix:
+def user_matrix(snap: Snapshot, grant_list, flt: MatrixFilter = NO_FILTER) -> Matrix:
     """A user reaches whatever any of their peers reaches."""
     owner = {p.id: p.user_id for p in snap.peers.values() if p.user_id in snap.users}
     return _edge_view(

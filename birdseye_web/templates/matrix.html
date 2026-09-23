@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Matrix{% endblock %}
+{% block main_class %}wide{% endblock %}
+{% block content %}
+<div class="matrix-layout">
+  <section class="matrix-main">
+    <form id="matrix-filter" class="filters" hx-get="/matrix" hx-target="#matrix" hx-push-url="true"
+          hx-trigger="change, input changed delay:300ms from:input[type=search]">
+      <div class="tabs" role="tablist">
+        {% for v in views %}
+        <label class="tab {% if v.key == view.key %}active{% endif %}">
+          <input type="radio" name="view" value="{{ v.key }}" {% if v.key == view.key %}checked{% endif %}>
+          {{ v.label }}
+        </label>
+        {% endfor %}
+      </div>
+      <div class="filter-row">
+        <label>Rows <input type="search" name="rq" value="{{ flt.row_query }}" placeholder="Filter {{ view.rows|lower }}…"></label>
+        <label>Columns <input type="search" name="cq" value="{{ flt.col_query }}" placeholder="Filter {{ view.cols|lower }}…"></label>
+        <label>Protocol
+          <select name="proto">
+            {% for p in protocols %}<option value="{{ p }}" {% if (flt.protocol or '') == p %}selected{% endif %}>{{ p or 'any' }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Port <input type="number" name="port" min="1" max="65535" value="{{ flt.port or '' }}" class="narrow"></label>
+        <label class="check"><input type="checkbox" name="hide_all" value="1" {% if flt.hide_all %}checked{% endif %}> Hide “All”</label>
+        <label class="check"><input type="checkbox" name="cond" value="1" {% if flt.only_conditional %}checked{% endif %}> Posture-gated only</label>
+      </div>
+    </form>
+    <div class="legend">
+      <span class="cell c-all">ALL</span> all protocols
+      <span class="cell c-ports">22</span> TCP/UDP ports
+      <span class="cell c-icmp">ping</span> ICMP only
+      <span class="cell c-ssh">ssh</span> NetBird SSH
+      <span class="cell c-ports c-cond">22</span> posture-gated
+      <span class="muted">· row may access column · click a cell to see why</span>
+    </div>
+    <div id="matrix">{% include "_matrix_table.html" %}</div>
+  </section>
+  <aside id="detail" class="detail">
+    <p class="muted">Click a cell to see which policies allow the access.</p>
+  </aside>
+</div>
+{% endblock %}

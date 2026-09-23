@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Reachability{% endblock %}
+{% block content %}
+<h1>Can X reach Y?</h1>
+<form class="card reach-form" hx-get="/reach" hx-target="#reach-result" hx-push-url="true" hx-trigger="submit, change">
+  <label>From (peer)
+    <select name="src" required>
+      <option value="">– select –</option>
+      {% for p in snap.peers.values()|sort(attribute='name') %}
+      <option value="p:{{ p.id }}" {% if src == 'p:' ~ p.id %}selected{% endif %}>{{ p.name }} ({{ p.ip }})</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>To (peer or resource)
+    <select name="dst" required>
+      <option value="">– select –</option>
+      <optgroup label="Peers">
+      {% for p in snap.peers.values()|sort(attribute='name') %}
+      <option value="p:{{ p.id }}" {% if dst == 'p:' ~ p.id %}selected{% endif %}>{{ p.name }} ({{ p.ip }})</option>
+      {% endfor %}
+      </optgroup>
+      <optgroup label="Network resources">
+      {% for r in snap.resources.values()|sort(attribute='name') %}
+      <option value="r:{{ r.id }}" {% if dst == 'r:' ~ r.id %}selected{% endif %}>{{ r.name }} ({{ r.address }})</option>
+      {% endfor %}
+      </optgroup>
+    </select>
+  </label>
+  <label>Protocol
+    <select name="proto">
+      {% for p in protocols %}<option value="{{ p }}" {% if proto == p %}selected{% endif %}>{{ p or 'any' }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Port <input type="number" name="port" min="1" max="65535" value="{{ port }}" class="narrow"></label>
+  <button class="primary">Check</button>
+</form>
+<div id="reach-result">{% include "_reach_result.html" %}</div>
+{% endblock %}

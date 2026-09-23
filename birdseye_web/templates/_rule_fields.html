@@ -1,0 +1,82 @@
+{% set pre = 'rules-' ~ idx ~ '-' %}
+<fieldset class="rule" data-rule>
+  <legend>Rule {{ idx + 1 }}
+    <button type="button" class="link danger small" data-remove-rule title="Remove rule">remove</button>
+  </legend>
+  <input type="hidden" name="rule_idx" value="{{ idx }}">
+  <input type="hidden" name="{{ pre }}id" value="{{ r.id }}">
+  <div class="grid2">
+    <label class="block">Rule name <span class="muted small">(empty = policy name)</span>
+      <input name="{{ pre }}name" value="{{ r.name }}"></label>
+    <div class="inline">
+      <label class="check"><input type="checkbox" name="{{ pre }}enabled" {% if r.enabled %}checked{% endif %}> Enabled</label>
+      <label class="check"><input type="checkbox" name="{{ pre }}bidirectional" {% if r.bidirectional %}checked{% endif %}> Bidirectional</label>
+      <label>Action
+        <select name="{{ pre }}action">
+          <option value="accept" {% if r.action == 'accept' %}selected{% endif %}>accept</option>
+          <option value="drop" {% if r.action == 'drop' %}selected{% endif %}>drop</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <div class="flow">
+    <fieldset class="picklist compact" data-picklist>
+      <legend>Sources <span class="muted" data-count></span></legend>
+      <div class="picklist-tools"><input type="search" placeholder="Filter groups…" data-filter>
+        <label class="check"><input type="checkbox" data-only-selected> selected only</label></div>
+      <div class="picklist-items">
+        {% for g in groups %}
+        <label class="pick" data-text="{{ g.name|lower }}">
+          <input type="checkbox" name="{{ pre }}sources" value="{{ g.id }}" {% if g.id in r.sources %}checked{% endif %}>
+          <span class="name">{{ g.name }}</span><span class="muted small">{{ g.peer_ids|length }} peers</span>
+        </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    <div class="flow-arrow">→</div>
+
+    <fieldset class="picklist compact" data-picklist>
+      <legend>Destinations <span class="muted" data-count></span></legend>
+      <div class="picklist-tools"><input type="search" placeholder="Filter groups…" data-filter>
+        <label class="check"><input type="checkbox" data-only-selected> selected only</label></div>
+      <div class="picklist-items">
+        {% for g in groups %}
+        <label class="pick" data-text="{{ g.name|lower }}">
+          <input type="checkbox" name="{{ pre }}destinations" value="{{ g.id }}" {% if g.id in r.destinations %}checked{% endif %}>
+          <span class="name">{{ g.name }}</span><span class="muted small">{{ g.peer_ids|length }} peers{% if g.resource_ids %}, {{ g.resource_ids|length }} res.{% endif %}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <label class="block small">…or a single resource / peer instead of groups
+        <select name="{{ pre }}dst_resource">
+          <option value="">– none (use groups) –</option>
+          <optgroup label="Network resources">
+            {% for res in resources %}
+            {% set v = res.type ~ ':' ~ res.id %}
+            <option value="{{ v }}" {% if r.dst_resource == v %}selected{% endif %}>{{ res.name }} ({{ res.address }})</option>
+            {% endfor %}
+          </optgroup>
+          <optgroup label="Peers">
+            {% for p in peers %}
+            {% set v = 'peer:' ~ p.id %}
+            <option value="{{ v }}" {% if r.dst_resource == v %}selected{% endif %}>{{ p.name }} ({{ p.ip }})</option>
+            {% endfor %}
+          </optgroup>
+        </select>
+      </label>
+    </fieldset>
+  </div>
+
+  <div class="grid2">
+    <label>Protocol
+      <select name="{{ pre }}protocol">
+        {% for p in protocols %}<option value="{{ p }}" {% if r.protocol == p %}selected{% endif %}>{{ p }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Ports <span class="muted small">(tcp/udp only, e.g. <code>22, 443, 8000-8099</code>; empty = all)</span>
+      <input name="{{ pre }}ports" value="{{ r.ports_text }}" placeholder="all ports">
+    </label>
+  </div>
+</fieldset>

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Groups{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Groups <span class="count">{{ groups|length }}</span></h1>
+  <input type="search" name="q" value="{{ q }}" placeholder="Search groups…"
+         hx-get="/groups" hx-target="#group-rows" hx-trigger="input changed delay:250ms" hx-push-url="true">
+  {% if session.can('groups', 'create') %}<a class="button primary" href="/groups/new">+ New group</a>{% endif %}
+</div>
+<table class="list">
+  <thead><tr><th>Name</th><th class="num">Peers</th><th class="num">Resources</th><th class="num">Used in policies</th></tr></thead>
+  <tbody id="group-rows">{% include "_group_rows.html" %}</tbody>
+</table>
+{% endblock %}
