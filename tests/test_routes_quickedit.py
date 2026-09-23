@@ -53,8 +53,10 @@ def test_allow_preview_then_confirm(client, nb):
 
 
 def test_allow_bad_ports_shows_error_and_writes_nothing(client, nb):
-    r = client.post("/matrix/allow", data={"row": "g:B", "col": "g:A", "protocol": "icmp",
-                                           "ports": "22", "preview": "1"})
+    r = client.post(
+        "/matrix/allow",
+        data={"row": "g:B", "col": "g:A", "protocol": "icmp", "ports": "22", "preview": "1"},
+    )
     assert "ports only apply" in r.text and nb.writes == []
 
 
@@ -74,7 +76,9 @@ def test_revoke_disable_puts_full_policy(client, nb):
 
 
 def test_revoke_unknown_policy(client, nb):
-    r = client.post("/matrix/revoke", data={"policy_id": "nope", "rule_id": "r1", "mode": "disable"})
+    r = client.post(
+        "/matrix/revoke", data={"policy_id": "nope", "rule_id": "r1", "mode": "disable"}
+    )
     assert "not found" in r.text and nb.writes == []
 
 

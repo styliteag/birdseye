@@ -48,6 +48,9 @@ async def test_load_snapshot_tolerates_forbidden_modules(api):
         return_value=httpx.Response(200, json=[policy("p", rule(["A"], ["A"]))])
     )
     respx.get(f"{BASE}/api/posture-checks").mock(return_value=httpx.Response(200, json=[]))
+    respx.get(f"{BASE}/api/setup-keys").mock(
+        return_value=httpx.Response(200, json=[{"id": "k", "auto_groups": ["A"]}])
+    )
     respx.get(f"{BASE}/api/networks").mock(
         return_value=httpx.Response(200, json=[{"id": "n1", "name": "N"}])
     )
@@ -60,6 +63,7 @@ async def test_load_snapshot_tolerates_forbidden_modules(api):
     snap = await load_snapshot(api)
     assert set(snap.peers) == {"a"} and snap.users == {}
     assert snap.resources["r1"].network_id == "n1"
+    assert snap.setup_key_group_ids == frozenset({"A"})
 
 
 @respx.mock

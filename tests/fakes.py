@@ -48,6 +48,7 @@ class FakeNetBird:
             "policies": [policy("p1", rule(["A"], ["B"], protocol="tcp", ports=["22"]))],
             "posture-checks": [],
             "networks": [],
+            "setup-keys": [],
         }
         self.writes: list[tuple[str, str, Any]] = []
         self.tokens: list[str] = []

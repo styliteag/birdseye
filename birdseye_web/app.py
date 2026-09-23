@@ -12,6 +12,7 @@ from fastapi.responses import RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from birdseye_web import (
+    routes_anomalies,
     routes_auth,
     routes_groups,
     routes_matrix,
@@ -72,6 +73,7 @@ def create_app(
     app.include_router(routes_quickedit.router)
     app.include_router(routes_groups.router)
     app.include_router(routes_policies.router)
+    app.include_router(routes_anomalies.router)
 
     @app.get("/healthz", include_in_schema=False)
     async def healthz() -> dict[str, str]:

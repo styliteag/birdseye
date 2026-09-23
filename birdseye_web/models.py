@@ -144,6 +144,8 @@ class Snapshot:
     networks: Mapping[str, Network] = field(default_factory=dict)
     policies: Mapping[str, Policy] = field(default_factory=dict)
     posture_checks: Mapping[str, PostureCheck] = field(default_factory=dict)
+    # groups that setup keys put new peers into (only visible to admins)
+    setup_key_group_ids: frozenset[str] = frozenset()
 
     def names(self) -> dict[str, str]:
         """Display name for any group, resource or peer ID."""
@@ -282,6 +284,7 @@ def build_snapshot(
     policies: Iterable[Raw] = (),
     posture_checks: Iterable[Raw] = (),
     networks: Iterable[tuple[Raw, Iterable[Raw], Iterable[Raw]]] = (),
+    setup_keys: Iterable[Raw] = (),
 ) -> Snapshot:
     """`networks` items are `(network, resources, routers)` raw triples."""
     nets: dict[str, Network] = {}
@@ -303,4 +306,7 @@ def build_snapshot(
             str(c["id"]): PostureCheck(str(c["id"]), str(c.get("name") or ""))
             for c in posture_checks
         },
+        setup_key_group_ids=frozenset(
+            g for k in setup_keys if not k.get("revoked") for g in _ids(k.get("auto_groups"))
+        ),
     )

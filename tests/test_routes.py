@@ -296,3 +296,31 @@ def test_matrix_build_is_memoised():
         policies=[policy("p", rule(["A"], ["B"]))],
     )
     assert build(s, VIEWS[0], MatrixFilter()) is build(s, VIEWS[0], MatrixFilter())
+
+
+def test_anomalies_page(client, nb):
+    nb.data["policies"] = [
+        *nb.data["policies"],
+        {
+            "id": "p9",
+            "name": "direct",
+            "enabled": True,
+            "source_posture_checks": [],
+            "rules": [
+                {
+                    "id": "r9",
+                    "name": "direct",
+                    "enabled": True,
+                    "action": "accept",
+                    "protocol": "all",
+                    "sources": [{"id": "A"}],
+                    "destinationResource": {"id": "b1", "type": "peer"},
+                }
+            ],
+        },
+    ]
+    login(client)
+    html = client.get("/anomalies").text
+    assert "Rule targets a single peer" in html and "destination is peer b1" in html
+    assert "direct" in client.get("/anomalies?min=warning").text
+    assert "Unused group" not in client.get("/anomalies?min=warning").text

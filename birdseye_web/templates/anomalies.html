@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Anomalies{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Anomalies</h1>
+  <nav class="sev-filter">
+    <a href="/anomalies?min=error" class="sev error {{ 'active' if level == 'error' }}">{{ counts.error }} errors</a>
+    <a href="/anomalies?min=warning" class="sev warning {{ 'active' if level == 'warning' }}">{{ counts.warning }} warnings</a>
+    <a href="/anomalies?min=info" class="sev info {{ 'active' if level == 'info' }}">{{ counts.info }} info</a>
+  </nav>
+</div>
+<p class="muted small">Things that work, but not the way NetBird's “peers in groups, policies between groups” model intends – or that cannot do what they say. Filter shows the chosen level and everything more severe.</p>
+
+{% for sec in sections %}
+<section class="card anomaly">
+  <details {% if sec.severity != 'info' %}open{% endif %}>
+    <summary>
+      <span class="sev-dot {{ sec.severity }}"></span>
+      <strong>{{ sec.check.label }}</strong>
+      <span class="count">{{ sec.findings|length }}</span>
+    </summary>
+    <p class="muted small">{{ sec.check.explain }}</p>
+    <table class="list">
+      <tbody>
+      {% for f in sec.findings %}
+        <tr>
+          <td>{% if f.link %}<a href="{{ f.link }}">{{ f.title }}</a>{% else %}{{ f.title }}{% endif %}</td>
+          <td class="muted small">{{ f.detail }}</td>
+          <td class="num"><span class="pill sev-{{ f.severity }}">{{ f.severity }}</span></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </details>
+</section>
+{% else %}
+<div class="card"><p>✔ Nothing found at this level.</p></div>
+{% endfor %}
+{% endblock %}

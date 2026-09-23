@@ -233,3 +233,18 @@ button.small, .button.small { padding: 2px 8px; font-size: 12px; }
 .quick-allow .chips-select { gap: 4px; margin: 4px 0 8px; }
 .quick-allow .grid2 { align-items: start; }
 .quick-preview form { display: flex; gap: 10px; align-items: center; margin-top: 6px; }
+
+/* --- anomalies -------------------------------------------------------------------- */
+.sev-filter { display: flex; gap: 6px; margin-left: auto; }
+.sev { padding: 4px 10px; border-radius: 14px; border: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+.sev.active { color: var(--ink); border-color: var(--ink); }
+.sev.error { border-left: 4px solid var(--deny); }
+.sev.warning { border-left: 4px solid var(--warn); }
+.sev.info { border-left: 4px solid var(--accent); }
+section.anomaly { margin-bottom: 12px; padding: 10px 14px; }
+section.anomaly summary { cursor: pointer; display: flex; gap: 8px; align-items: center; }
+section.anomaly table.list { margin-top: 6px; }
+.sev-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.sev-dot.error, .pill.sev-error { background: var(--deny); color: #fff; }
+.sev-dot.warning, .pill.sev-warning { background: var(--warn); color: #fff; }
+.sev-dot.info { background: var(--accent); }
