@@ -13,7 +13,7 @@
       <th class="corner"><span>{{ view.rows }} ↓ / {{ view.cols }} →</span></th>
       {% for c in m.cols %}
       <th class="col" data-col="{{ c.key }}" title="{{ c.label }}{% if c.sub %} · {{ c.sub }}{% endif %}">
-        <div><span>{% if c.key.startswith('r:') %}▣ {% elif c.key.startswith('p:') %}• {% endif %}{{ c.label }}</span></div>
+        <div>{% if c.key.startswith('r:') %}▣ {% elif c.key.startswith('p:') %}• {% endif %}{{ c.label }}</div>
       </th>
       {% endfor %}
     </tr>

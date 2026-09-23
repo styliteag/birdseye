@@ -122,10 +122,11 @@ table.matrix th, table.matrix td { border-bottom: 1px solid var(--line); border-
 table.matrix thead th { position: sticky; top: 0; background: var(--panel); z-index: 2; vertical-align: bottom; }
 table.matrix th.corner { left: 0; z-index: 3; text-align: left; padding: 6px 8px; min-width: 200px;
                          font-weight: 400; color: var(--muted); font-size: 11px; }
-table.matrix th.col { height: 150px; width: 34px; min-width: 34px; padding: 0; }
-table.matrix th.col > div { width: 34px; height: 150px; position: relative; }
-table.matrix th.col span { position: absolute; left: 50%; bottom: 8px; transform-origin: 0 50%;
-  transform: rotate(-60deg); white-space: nowrap; font-weight: 500; max-width: 170px; overflow: hidden; text-overflow: ellipsis; }
+table.matrix th.col { height: 160px; width: 34px; min-width: 34px; padding: 6px 0; vertical-align: bottom; }
+/* Vertical labels stay inside their own column. Diagonal ones spill into the
+   neighbour, whose opaque sticky background then paints over them. */
+table.matrix th.col > div { writing-mode: vertical-rl; transform: rotate(180deg); margin: 0 auto;
+  max-height: 148px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
 table.matrix th.row { position: sticky; left: 0; background: var(--panel); z-index: 1; text-align: left;
   padding: 3px 8px; white-space: nowrap; font-weight: 500; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
 table.matrix th.row small { color: var(--muted); font-weight: 400; margin-left: 6px; font-family: var(--mono); }
