@@ -162,6 +162,24 @@
     closePopover();
   }, true);
 
+  // --- jobs page: keep opened logs open across the 5 s auto-refresh ------------
+  var openJobs = [];
+  document.addEventListener("htmx:beforeSwap", function (ev) {
+    if (ev.detail.target && ev.detail.target.id === "jobs-body") {
+      openJobs = Array.prototype.map.call(
+        ev.detail.target.querySelectorAll("details[data-key][open]"),
+        function (d) { return d.getAttribute("data-key"); });
+    }
+  });
+  document.addEventListener("htmx:afterSettle", function (ev) {
+    if (ev.detail.target && ev.detail.target.id === "jobs-body") {
+      openJobs.forEach(function (key) {
+        var d = ev.detail.target.querySelector('details[data-key="' + CSS.escape(key) + '"]');
+        if (d) d.open = true;
+      });
+    }
+  });
+
   document.addEventListener("DOMContentLoaded", function () { initPicklists(document); });
   document.addEventListener("htmx:afterSwap", function (ev) { initPicklists(ev.detail.elt); });
 })();

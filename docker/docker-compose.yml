@@ -76,6 +76,9 @@ services:
       # NB_ADMIN_API_KEY is set. Falls back to BACKUP_EMAIL_TO / SMTP_TO.
       EXPORT_EMAIL_TO: ${EXPORT_EMAIL_TO:-}
 
+      # Jobs birdseye-web may start early (Jobs page). Empty = none.
+      JOB_TRIGGERS: ${JOB_TRIGGERS:-cleanup,maintenance}
+
       # Timezone for stdout/email/Mattermost timestamps
       TZ: ${TZ:-UTC}
     volumes:

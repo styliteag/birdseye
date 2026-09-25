@@ -41,6 +41,10 @@ class Session:
     def logged_in(self) -> bool:
         return bool(self.access_token)
 
+    @property
+    def is_admin(self) -> bool:
+        return self.role in ("owner", "admin")
+
     def can(self, module: str, op: str) -> bool:
         """UI hint only; NetBird enforces the real permission on every call."""
         return bool(self.permissions.get("modules", {}).get(module, {}).get(op, False))

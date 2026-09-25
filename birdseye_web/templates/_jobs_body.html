@@ -1,0 +1,80 @@
+{% if flash %}<div class="flash ok">{{ flash }}</div>{% endif %}
+{% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+
+{% if not configured %}
+<div class="card">
+  <p>The Jobs page is not configured.</p>
+  <p class="muted small">Mount the birdseye container's <code>jobs</code> directory into this container and set <code>WEB_JOBS_DIR</code> – see docs/web-ui.md, “Jobs page”.</p>
+</div>
+{% elif not view.available %}
+<div class="card">
+  <p>No job registry found in <code>WEB_JOBS_DIR</code>.</p>
+  <p class="muted small">The birdseye container writes it at start-up (needs birdseye ≥ 0.6.0). Check the volume mount on both containers.</p>
+</div>
+{% else %}
+{% set fw = view.forwarder %}
+<section class="card job-forwarder">
+  <span class="state-dot {{ fw.status }}"></span>
+  <strong>Audit-event forwarder</strong>
+  {% if fw.status == 'unknown' %}<span class="muted">no heartbeat yet</span>
+  {% else %}
+    <span class="pill st-{{ fw.status }}">{{ fw.status }}</span>
+    <span class="muted small">last poll {{ fw.age_s }} s ago{% if fw.last_id is not none %} · last event #{{ fw.last_id }}{% endif %} · {{ fw.forwarded }} forwarded since start{% if fw.uptime_s %} · up {{ (fw.uptime_s // 3600) }} h{% endif %}</span>
+    {% if fw.error %}<span class="pill st-failed">{{ fw.error }}</span>{% endif %}
+  {% endif %}
+</section>
+
+<table class="list jobs">
+  <thead><tr><th></th><th>Job</th><th>Schedule</th><th>Last run</th><th class="num">Duration</th><th>Result</th><th></th></tr></thead>
+  <tbody>
+  {% for j in view.jobs %}
+    <tr class="{{ 'off' if not j.enabled }}">
+      <td><span class="state-dot {{ j.status }}" title="{{ j.status }}"></span></td>
+      <td><strong>{{ j.label }}</strong>{% if not j.enabled %}<div class="muted small">{{ j.reason }}</div>{% endif %}</td>
+      <td><code>{{ j.schedule or '–' }}</code></td>
+      <td>
+        {% if j.status == 'running' %}running since {{ j.started[11:19] }} UTC
+        {% elif j.finished %}{{ j.finished[:10] }} {{ j.finished[11:19] }} UTC
+          <div class="muted small">{{ j.trigger }}{% if j.mode == 'dry-run' %} · dry run{% endif %}</div>
+        {% else %}<span class="muted">–</span>{% endif %}
+      </td>
+      <td class="num">{% if j.duration_s is not none %}{{ j.duration_s }} s{% endif %}</td>
+      <td>
+        {% if j.status in ('ok', 'failed') %}<span class="pill st-{{ j.status }}">{{ 'ok' if j.status == 'ok' else 'exit ' ~ j.exit_code }}</span>{% endif %}
+        {% if j.status == 'running' %}<span class="pill st-running">running</span>{% endif %}
+        {% if j.queued %}<span class="pill">queued</span>{% endif %}
+      </td>
+      <td><div class="job-actions">
+        {% if j.triggerable and session.is_admin %}
+          {% if j.dry_run %}
+          <form hx-post="/jobs/{{ j.key }}/run" hx-target="#jobs-body">
+            <input type="hidden" name="mode" value="dry-run">
+            <button class="small" {% if j.status == 'running' %}disabled{% endif %}>Dry run</button>
+          </form>
+          {% endif %}
+          <form hx-post="/jobs/{{ j.key }}/run" hx-target="#jobs-body">
+            <input type="hidden" name="mode" value="run">
+            <button class="small primary" {% if j.status == 'running' %}disabled{% endif %}
+                    data-confirm="Run {{ j.label }} now? It changes your NetBird account like a scheduled run would.">Run now</button>
+          </form>
+        {% endif %}
+      </div></td>
+    </tr>
+    {% if session.is_admin and (j.log_tail or j.history) %}
+    <tr class="job-log-row"><td></td><td colspan="6">
+      <details data-key="{{ j.key }}">
+        <summary class="small">log ({{ j.log_tail|length }} lines) · history ({{ j.history|length }})</summary>
+        {% if j.history %}
+        <div class="job-history">
+          {% for h in j.history %}<span class="pill st-{{ 'ok' if h.exit_code == 0 else 'failed' }}" title="{{ h.started }} · {{ h.trigger }} · {{ h.mode }} · {{ h.duration_s }} s">{{ h.started[5:16]|replace('T', ' ') }}</span>{% endfor %}
+        </div>
+        {% endif %}
+        <pre class="job-log">{{ j.log_tail|join('\n') }}</pre>
+      </details>
+    </td></tr>
+    {% endif %}
+  {% endfor %}
+  </tbody>
+</table>
+{% if not session.is_admin %}<p class="muted small">Starting jobs and reading their logs is limited to NetBird owners and admins.</p>{% endif %}
+{% endif %}

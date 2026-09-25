@@ -57,6 +57,7 @@ FastAPI + Jinja + HTMX, own image (`docker/web/Dockerfile`). User docs: `docs/we
 - **Writes:** raw dicts via `payloads.py` / `quickedit.py`. Group `PUT` replaces the whole group — always re-`GET` first and carry `resources` over. Policy updates start from a fresh `GET` and keep fields the editor does not show (`authorized_groups`, `sourceResource`).
 - Every write: CSRF (`context.csrf_protect`), `context.log_change()` before/after line, `cache.invalidate()`. Previews use `diff.access_delta()` on a simulated snapshot.
 - UI text is English. No inline JS/`hx-on` (strict CSP); behaviour lives in `static/app.js`.
+- **Jobs page:** the web container never runs anything itself. It reads `registry.json`/`state/*.json` from the shared jobs dir and drops request files; `jobrun.py serve` in the birdseye container validates them against its registry and `JOB_TRIGGERS`. Keep that split — no docker socket, no command lines from the web side. New cron jobs go through `add_job <key> …` / `job_off` in `docker/entrypoint.sh`.
 - Run locally: see `docs/web-ui.md` step 3 (`http://localhost:53000/` is a preregistered redirect). Tests: `uv run pytest`.
 
 ## Commit style

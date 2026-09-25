@@ -20,6 +20,7 @@
       <a href="/groups" {% if p.startswith('/groups') %}aria-current="page"{% endif %}>Groups</a>
       <a href="/policies" {% if p.startswith('/policies') %}aria-current="page"{% endif %}>Policies</a>
       <a href="/anomalies" {% if p.startswith('/anomalies') %}aria-current="page"{% endif %}>Anomalies</a>
+      <a href="/jobs" {% if p.startswith('/jobs') %}aria-current="page"{% endif %}>Jobs</a>
     </nav>
     <div class="who">
       <span title="{{ session.user_id }}">{{ session.user_name }}</span>

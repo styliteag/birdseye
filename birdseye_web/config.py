@@ -25,6 +25,8 @@ class Settings:
     session_hours: float = 12.0
     # groups whose name matches are never reported on the anomalies page
     anomaly_ignore: str = ""
+    # shared volume with the birdseye container (jobrun.py); empty = no Jobs page
+    jobs_dir: str = ""
 
     @property
     def redirect_uri(self) -> str:
@@ -77,4 +79,5 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         cache_ttl=float(get("WEB_CACHE_TTL", "30")),
         session_hours=float(get("WEB_SESSION_HOURS", "12")),
         anomaly_ignore=anomaly_ignore,
+        jobs_dir=get("WEB_JOBS_DIR"),
     )

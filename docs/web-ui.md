@@ -17,6 +17,7 @@ It ships as its own image (`styliteag/birdseye-web`), separate from the
 | **Reachability** | “Can peer X reach Y on tcp/22?” with the policies and groups that make it so. |
 | **Groups** | Create, rename, delete; edit membership with a searchable checklist. A live panel shows who gains or loses access *before* you save. |
 | **Policies** | List with on/off switch; editor for multi-rule policies (groups or a single resource/peer as destination, `netbird-ssh`, ports and ranges, bidirectional, posture checks) with the same live effect preview. |
+| **Jobs** | Status of the `birdseye` container's cron jobs and audit-event forwarder: last run, result, duration, history, log tail. Owners and admins can start selected jobs (by default `cleanup` and `maintenance`, both also as dry run). Optional, see [Jobs page](#jobs-page-optional). |
 | **Anomalies** | Configuration smells: rules that bypass groups, devices whose groups drifted from their user's defaults, peers inside resource groups, empty or missing groups in policies, resources nobody routes or reaches, unused groups, disabled policies. |
 
 Writes go to NetBird **immediately** (after the confirm/preview step) and show
@@ -95,6 +96,7 @@ on `127.0.0.1` only — put your reverse proxy (TLS) in front of it.
 | `WEB_OIDC_ISSUER` | no | `<WEB_NB_URL>/oauth2` | Embedded IdP issuer. |
 | `WEB_CACHE_TTL` | no | `30` | Seconds a per-user snapshot of the account is reused. Every write clears it. |
 | `WEB_SESSION_HOURS` | no | `12` | Session lifetime. |
+| `WEB_JOBS_DIR` | no | – | Path of the shared jobs directory inside this container (e.g. `/jobs`). Empty hides the Jobs page's content. See [Jobs page](#jobs-page-optional). |
 | `WEB_ANOMALY_IGNORE` | no | – | Regex on group names the Anomalies page never reports, e.g. `^Z[0-9]{3}\b` for groups used as documentation notes. |
 | `TZ` | no | `UTC` | Log timestamps. |
 
@@ -142,6 +144,55 @@ uv run uvicorn --factory birdseye_web.app:build --host 127.0.0.1 --port 53000 --
 
 Open <http://localhost:53000>. Port 53000 must be free (a running `netbird up`
 login uses it briefly).
+
+## Jobs page (optional)
+
+Shows what the `birdseye` container (forwarder + cron jobs, ≥ 0.6.0) is doing,
+and lets NetBird owners/admins start some jobs early. The two containers share
+one directory; there is no network API between them.
+
+The `birdseye` container writes, under `/var/lib/birdseye/jobs`:
+
+- `registry.json` — every job, its schedule, and why a job is disabled
+  (e.g. `CRON_BACKUP_NETBIRD not set`, `need: SMTP_HOST`);
+- `state/<job>.json` — last run (start, end, exit code, duration, trigger,
+  last 200 log lines) and the last 20 runs;
+- `state/forwarder.json` — forwarder heartbeat (last poll, last event id,
+  API errors).
+
+A button in the UI only drops a small request file (`requests/*.json`: job
+name, mode, who). A runner inside the `birdseye` container picks it up within
+~3 seconds and starts the job **only if** it is enabled and listed in that
+container's `JOB_TRIGGERS` (default `cleanup,maintenance`). The web container
+never sends a command line, and cannot widen the list.
+
+**birdseye service** — nothing to add if its state directory is already a
+bind mount (`./data/birdseye:/var/lib/birdseye`). Optional:
+
+```yaml
+    environment:
+      JOB_TRIGGERS: cleanup,maintenance   # jobs the UI may start; empty = none
+```
+
+**birdseye-web service** — mount the jobs directory read-only, and only its
+`requests/` sub-directory writable:
+
+```yaml
+    environment:
+      WEB_JOBS_DIR: /jobs
+    volumes:
+      - ./data/birdseye/jobs:/jobs:ro
+      - ./data/birdseye/jobs/requests:/jobs/requests
+```
+
+(Start the `birdseye` container once first so the directories exist with the
+right modes: `requests/` is `1733`, writable for the web container's uid 10001
+but not listable.)
+
+Everyone signed in sees the status. Starting jobs, and reading the log tails
+(which name peers and groups), is limited to NetBird **owners and admins**.
+Every start is logged by both containers (`birdseye_web.audit` and
+`[jobrun] request …: accepted`) and the run is recorded as `manual:<name>`.
 
 ## Troubleshooting
 

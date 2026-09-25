@@ -15,6 +15,7 @@ from birdseye_web import (
     routes_anomalies,
     routes_auth,
     routes_groups,
+    routes_jobs,
     routes_matrix,
     routes_policies,
     routes_quickedit,
@@ -74,6 +75,7 @@ def create_app(
     app.include_router(routes_groups.router)
     app.include_router(routes_policies.router)
     app.include_router(routes_anomalies.router)
+    app.include_router(routes_jobs.router)
 
     @app.get("/healthz", include_in_schema=False)
     async def healthz() -> dict[str, str]:

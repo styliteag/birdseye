@@ -91,6 +91,10 @@ image (`styliteag/birdseye-web`, `ghcr.io/styliteag/birdseye-web`):
   multi-rule policies (including `netbird-ssh`, port ranges, posture
   checks), each with the same gained/lost preview.
 - **Reachability** — “can X reach Y on tcp/22?”, with the reasons.
+- **Jobs** — status of this image's cron jobs and forwarder (last run,
+  result, history, log tail); owners/admins can start `cleanup` and
+  `maintenance` early. Optional; needs the jobs directory shared between
+  the two containers.
 - **Anomalies** — rules that bypass groups, devices whose groups drifted
   from their user's defaults, peers inside resource groups, empty or unused
   groups, resources nobody reaches.

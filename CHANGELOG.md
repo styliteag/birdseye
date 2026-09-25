@@ -8,7 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
--
+- **Jobs page** in birdseye-web: status of every birdseye cron job (schedule,
+  last run, exit code, duration, 20-run history, log tail) and of the
+  audit-event forwarder (heartbeat, last event, API errors). NetBird owners and
+  admins can start `cleanup` and `maintenance` early, also as a dry run.
+  Setup: [docs/web-ui.md](docs/web-ui.md#jobs-page-optional).
+- `jobrun.py` in the birdseye image: every cron job now runs through it and
+  leaves a status file under `/var/lib/birdseye/jobs`; a supervisord program
+  (`job_runner`) starts jobs requested by the web UI — only jobs that are
+  enabled and listed in the new `JOB_TRIGGERS` (default `cleanup,maintenance`).
+  Two runs of the same job never overlap any more; the second is skipped.
+- The forwarder writes a heartbeat (`jobs/state/forwarder.json`).
 
 ## [0.5.0] - 2026-09-23
 

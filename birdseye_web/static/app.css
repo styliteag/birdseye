@@ -248,3 +248,22 @@ section.anomaly table.list { margin-top: 6px; }
 .sev-dot.error, .pill.sev-error { background: var(--deny); color: #fff; }
 .sev-dot.warning, .pill.sev-warning { background: var(--warn); color: #fff; }
 .sev-dot.info { background: var(--accent); }
+
+/* --- jobs --------------------------------------------------------------------------- */
+.state-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+.state-dot.ok { background: var(--ok); }
+.state-dot.failed, .state-dot.failing, .state-dot.stale { background: var(--deny); }
+.state-dot.running { background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+.state-dot.disabled { background: transparent; border: 1px solid var(--muted); }
+@keyframes pulse { 50% { opacity: .35; } }
+.pill.st-ok { border-color: var(--ok); color: var(--ok); }
+.pill.st-failed, .pill.st-failing, .pill.st-stale { border-color: var(--deny); color: var(--deny); }
+.pill.st-running { border-color: var(--accent); color: var(--accent); }
+.job-forwarder { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; padding: 10px 14px; }
+table.jobs td { vertical-align: middle; }
+.job-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.job-actions form { margin: 0; }
+tr.job-log-row td { border-top: 0; padding-top: 0; }
+.job-history { display: flex; flex-wrap: wrap; gap: 2px; margin: 6px 0; }
+pre.job-log { max-height: 320px; overflow: auto; background: var(--bg); border: 1px solid var(--line);
+  border-radius: 6px; padding: 8px; font: 11px/1.4 var(--mono); white-space: pre-wrap; margin: 4px 0 0; }

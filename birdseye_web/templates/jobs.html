@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Jobs{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Jobs</h1>
+  <span class="muted small">birdseye container · refreshes every 5 s</span>
+</div>
+<div id="jobs-body" hx-get="/jobs" hx-trigger="every 5s" hx-target="#jobs-body">
+  {% include "_jobs_body.html" %}
+</div>
+{% endblock %}

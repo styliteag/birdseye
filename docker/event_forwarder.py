@@ -606,6 +606,36 @@ def _classify_error(exc: Exception) -> str:
     return "transient"
 
 
+class Heartbeat:
+    """Best-effort status file for the birdseye-web Jobs page. Never raises."""
+
+    def __init__(self, path: Path):
+        self.path = path
+        self.started = time.time()
+        self.forwarded = 0
+
+    def beat(self, state: State, *, ok: bool, error: str = "", new: int = 0) -> None:
+        self.forwarded += new
+        data = {
+            "job": "forwarder",
+            "started": self.started,
+            "updated": time.time(),
+            "last_poll_ok": ok,
+            "error": error,
+            "last_id": state.last_id,
+            "outage_started": state.outage_started,
+            "forwarded_since_start": self.forwarded,
+        }
+        try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = self.path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(data))
+            os.chmod(tmp, 0o644)
+            os.replace(tmp, self.path)
+        except OSError:
+            pass
+
+
 def _run(
     *,
     client: APIClient,
@@ -624,6 +654,7 @@ def _run(
     backlog_warn_threshold: int,
     mattermost: MattermostSink,
     email: EmailSink,
+    heartbeat: Heartbeat,
 ) -> int:
     seeded = state.load()
     current_backoff = poll_interval
@@ -638,6 +669,7 @@ def _run(
             initial = _fetch_events(client)
         except Exception as e:
             _log_err(f"initial fetch failed: {e.__class__.__name__}: {e}")
+            heartbeat.beat(state, ok=False, error=e.__class__.__name__)
             return 2
         state.last_id = _event_sort_key(initial[-1]) if initial else 0
         state.save()
@@ -672,6 +704,7 @@ def _run(
             kind = _classify_error(e)
             if kind == "fatal":
                 _log_err(f"fatal API error ({e.__class__.__name__}): {e} — exiting")
+                heartbeat.beat(state, ok=False, error=e.__class__.__name__)
                 return 3
             now = time.time()
             new_outage = state.outage_started is None
@@ -694,6 +727,7 @@ def _run(
             except KeyboardInterrupt:
                 return 0
             current_backoff = min(current_backoff * 2, backoff_cap)
+            heartbeat.beat(state, ok=False, error=e.__class__.__name__)
             continue
 
         if state.outage_started is not None:
@@ -740,6 +774,7 @@ def _run(
             state.save()
 
         email.tick()
+        heartbeat.beat(state, ok=True, new=len(new_events))
 
         try:
             time.sleep(poll_interval)
@@ -813,11 +848,17 @@ def main() -> int:
     mattermost_exclude = _env_list("MATTERMOST_EXCLUDE", "")
     email_exclude = _env_list("EMAIL_EXCLUDE", "")
 
+    state = State(state_path)
+    heartbeat = Heartbeat(
+        Path(_env("JOBS_DIR", "/var/lib/birdseye/jobs")) / "state" / "forwarder.json"
+    )
     client = client_from_env(key="user")
     try:
         resolver = build_initiator_resolver(client)
     except Exception as e:
         _log_err(f"initiator resolver build failed: {e.__class__.__name__}: {e}")
+        state.load()
+        heartbeat.beat(state, ok=False, error=e.__class__.__name__)
         return 2
 
     mattermost = MattermostSink(
@@ -827,7 +868,6 @@ def main() -> int:
         resolver=resolver,
     )
     email = _build_email_sink(resolver)
-    state = State(state_path)
 
     # One-shot health probes — run before the poll loop so the operator
     # sees the result in the first chunk of logs. Failures are logged
@@ -854,6 +894,7 @@ def main() -> int:
         backlog_warn_threshold=backlog_warn_threshold,
         mattermost=mattermost,
         email=email,
+        heartbeat=heartbeat,
     )
 
 
