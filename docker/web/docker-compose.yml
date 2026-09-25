@@ -37,9 +37,12 @@ services:
       WEB_JOBS_DIR: ${WEB_JOBS_DIR:-}
       TZ: ${TZ:-UTC}
     # volumes:
-    #   # read-only, except requests/ where the UI drops "run <job>" files
-    #   - /path/to/birdseye/data/jobs:/jobs:ro
-    #   - /path/to/birdseye/data/jobs/requests:/jobs/requests
+    #   # The birdseye container's /var/lib/birdseye/jobs, as a host path
+    #   # (bind-mount birdseye's state dir, e.g. ./data/birdseye:/var/lib/birdseye).
+    #   # Read-only — only requests/ writable. Never mount it read-write: the
+    #   # registry there names the commands the birdseye container runs as root.
+    #   - ./data/birdseye/jobs:/jobs:ro
+    #   - ./data/birdseye/jobs/requests:/jobs/requests
     ports:
       # Localhost only; publish through your reverse proxy (TLS).
       - "127.0.0.1:${WEB_PORT:-8080}:8080"

@@ -109,9 +109,3 @@ def test_request_run_validates(jobs_dir, key, mode, msg):
     with pytest.raises(JobError, match=msg):
         request_run(jobs_dir, key, mode, by="x")
     assert list((jobs_dir / "requests").glob("*")) == []
-
-
-def test_request_run_marks_job_queued(jobs_dir):
-    request_run(jobs_dir, "cleanup", "run", by="x")
-    job = {j.key: j for j in load_jobs(jobs_dir).jobs}["cleanup"]
-    assert job.queued

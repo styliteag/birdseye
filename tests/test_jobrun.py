@@ -183,3 +183,95 @@ def test_oversized_request_rejected(jobs):
     assert jobrun.handle_request(jobs, path, {"cleanup": _spec()}, lambda c: None).startswith(
         "rejected"
     )
+
+
+# --- security review fixes ------------------------------------------------------
+
+
+def test_fifo_request_does_not_block(jobs):
+    import os
+
+    fifo = jobs / "requests" / "f.json"
+    os.mkfifo(fifo)
+    outcome = jobrun.handle_request(jobs, fifo, {"cleanup": _spec()}, lambda c: None)
+    assert outcome.startswith("rejected") and not fifo.exists()
+
+
+def test_json_bomb_is_rejected_not_raised(jobs):
+    path = jobs / "requests" / "bomb.json"
+    path.write_text("[" * 3000)
+    assert jobrun.handle_request(jobs, path, {"cleanup": _spec()}, lambda c: None).startswith(
+        "rejected"
+    )
+
+
+def test_directory_named_json_is_removed(jobs):
+    d = jobs / "requests" / "dir.json"
+    d.mkdir()
+    jobrun.handle_request(jobs, d, {}, lambda c: None)
+    assert not d.exists()
+
+
+def test_allowlist_rechecked_at_request_time(jobs, monkeypatch):
+    monkeypatch.setenv("JOB_TRIGGERS", "maintenance")
+    spawned = []
+    path = _request(jobs, job="cleanup", mode="run", by="a")
+    outcome = jobrun.handle_request(jobs, path, {"cleanup": _spec()}, spawned.append)
+    assert outcome.startswith("rejected") and spawned == []
+
+
+def test_by_is_reduced_to_printable_ascii(jobs):
+    spawned = []
+    path = _request(jobs, job="cleanup", mode="run", by="evil‮\nname")
+    jobrun.handle_request(jobs, path, {"cleanup": _spec()}, spawned.append)
+    [cmd] = spawned
+    assert "manual:evilname" in cmd
+
+
+def test_serve_tick_one_spawn_per_job_and_capped(jobs):
+    for i in range(10):
+        (jobs / "requests" / f"{i:02d}.json").write_text(
+            json.dumps({"job": "cleanup", "mode": "run", "by": "a"})
+        )
+    spawned = []
+    jobrun.serve_tick(jobs, {"cleanup": _spec()}, spawned.append)
+    assert len(spawned) == 1
+    assert list((jobs / "requests").glob("*.json")) == []
+
+
+def test_serve_tick_skips_job_already_running(jobs):
+    (jobs / "requests" / "a.json").write_text(
+        json.dumps({"job": "cleanup", "mode": "run", "by": "a"})
+    )
+    spawned = []
+    with jobrun.job_lock(jobs, "cleanup"):
+        jobrun.serve_tick(jobs, {"cleanup": _spec()}, spawned.append)
+    assert spawned == []
+
+
+def test_serve_tick_survives_bad_files(jobs):
+    (jobs / "requests" / "a.json").write_text("[" * 3000)
+    (jobs / "requests" / "b.json").write_text(
+        json.dumps({"job": "cleanup", "mode": "run", "by": "a"})
+    )
+    spawned = []
+    jobrun.serve_tick(jobs, {"cleanup": _spec()}, spawned.append)
+    assert len(spawned) == 1
+
+
+def test_run_still_executes_when_state_cannot_be_written(jobs, monkeypatch, capsys):
+    def boom(*a, **k):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(jobrun, "_write_json", boom)
+    rc = jobrun.run_job(jobs, "x", [PY, "-c", "print('ran anyway')"])
+    assert rc == 0 and "ran anyway" in capsys.readouterr().out
+
+
+def test_unknown_job_name_never_touches_the_filesystem(jobs):
+    evil = "../../escaped"
+    (jobs / "requests" / "a.json").write_text(json.dumps({"job": evil, "mode": "run", "by": "a"}))
+    jobrun.serve_tick(jobs, {"cleanup": _spec()}, lambda c: None)
+    assert not (jobs / "escaped.lock").exists()
+    assert not (jobs.parent / "escaped.lock").exists()
+    assert list((jobs / "state").glob("*.lock")) == []

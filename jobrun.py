@@ -69,6 +69,14 @@ def _now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
 
+def _record(path: Path, data: object) -> None:
+    """Best-effort status write: a full disk must not stop the job itself."""
+    try:
+        _write_json(path, data)
+    except OSError as exc:
+        print(f"[jobrun] cannot write {path.name}: {exc}", file=sys.stderr, flush=True)
+
+
 def _write_json(path: Path, data: object) -> None:
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_text(json.dumps(data, indent=1))
@@ -80,8 +88,39 @@ def _read_json(path: Path) -> dict:
     try:
         data = json.loads(path.read_text())
         return data if isinstance(data, dict) else {}
-    except (OSError, ValueError):
+    except Exception:  # noqa: BLE001 - includes RecursionError from nested JSON
         return {}
+
+
+def _parse(raw: bytes) -> dict:
+    try:
+        data = json.loads(raw)
+        return data if isinstance(data, dict) else {}
+    except Exception:  # noqa: BLE001 - RecursionError, UnicodeDecodeError, ...
+        return {}
+
+
+MAX_REQUEST = 4096
+
+
+def _read_request(path: Path) -> bytes | None:
+    """Bytes of a small regular request file, or None.
+
+    One open, then checks on the descriptor: no symlink is followed, a FIFO
+    cannot block us, and a file swapped after a check is never read by name.
+    """
+    flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC
+    try:
+        fd = os.open(path, flags)
+    except OSError:
+        return None
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode) or st.st_size > MAX_REQUEST:
+            return None
+        return os.read(fd, MAX_REQUEST + 1)[:MAX_REQUEST]
+    finally:
+        os.close(fd)
 
 
 # --- recording a run -------------------------------------------------------------
@@ -89,9 +128,18 @@ def _read_json(path: Path) -> dict:
 
 @contextlib.contextmanager
 def job_lock(base: Path, key: str) -> Iterator[bool]:
-    """Non-blocking per-job lock; yields False if another run holds it."""
+    """Non-blocking per-job lock; yields False if another run holds it.
+
+    If the lock file cannot even be opened (full or read-only disk), the job
+    runs unlocked rather than not at all.
+    """
     path = base / "state" / f"{key}.lock"
-    with open(path, "a") as fh:
+    try:
+        fh = open(path, "a")  # noqa: SIM115 - closed below
+    except OSError:
+        yield True
+        return
+    with fh:
         try:
             fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
@@ -135,7 +183,8 @@ def run_job(
     tail_lines: int = 200,
     history: int = 20,
 ) -> int:
-    ensure_dirs(base)
+    with contextlib.suppress(OSError):
+        ensure_dirs(base)
     state_path = base / "state" / f"{key}.json"
     with job_lock(base, key) as got:
         if not got:
@@ -144,7 +193,7 @@ def run_job(
         prev = _read_json(state_path)
         started, t0 = _now(), time.monotonic()
         run = {"job": key, "running": True, "started": started, "trigger": trigger, "mode": mode}
-        _write_json(state_path, {**prev, **run})
+        _record(state_path, {**prev, **run})
 
         tail: deque[str] = deque(maxlen=tail_lines)
         rc = _stream(command, tail)
@@ -158,7 +207,7 @@ def run_job(
             "mode": mode,
         }
         past = [summary, *prev.get("history", [])][:history]
-        _write_json(
+        _record(
             state_path,
             {"job": key, "running": False, **summary, "log_tail": list(tail), "history": past},
         )
@@ -239,27 +288,81 @@ def handle_request(
     """Validate one request file, start the job if allowed, always remove the file."""
     try:
         # The directory is writable by the web container and this runs as root:
-        # never follow a link it planted there, and never read anything but a
-        # small regular file.
-        st = path.lstat()
-        if not stat.S_ISREG(st.st_mode) or st.st_size > 4096:
+        # read only a small regular file, through one non-following open.
+        raw = _read_request(path)
+        if raw is None:
             return "rejected: not a regular request file"
-        body = _read_json(path)
-        key = str(body.get("job", ""))
-        mode = str(body.get("mode", "run"))
-        by = "".join(c for c in str(body.get("by", "?")) if c.isprintable())[:80] or "?"
+        body = _parse(raw)
+        if not body:
+            return "rejected: not a JSON object"
+        key = str(body.get("job", ""))[:40]
+        mode = str(body.get("mode", "run"))[:20]
+        by = "".join(c for c in str(body.get("by", "?")) if " " <= c <= "~")[:80] or "?"
         spec = registry.get(key)
         if spec is None:
             return f"rejected: unknown job {key!r}"
-        if not (spec.enabled and spec.triggerable):
+        # Re-check the allowlist from this container's environment, not only
+        # the `triggerable` flag stored in registry.json.
+        if not (spec.enabled and spec.triggerable and key in trigger_allowlist()):
             return f"rejected: {key} is not triggerable"
         if mode not in MODES or (mode == "dry-run" and not spec.dry_run_arg):
             return f"rejected: mode {mode!r} not available for {key}"
         spawn(_run_command(spec, mode, by))
         return "accepted"
     finally:
-        with contextlib.suppress(OSError):
+        _remove(path)
+
+
+def _remove(path: Path) -> None:
+    with contextlib.suppress(OSError):
+        if path.is_dir() and not path.is_symlink():
+            for child in path.iterdir():  # someone made x.json a directory
+                _remove(child)
+            path.rmdir()
+        else:
             path.unlink()
+
+
+MAX_SPAWNS_PER_TICK = 5
+
+
+def _job_of(path: Path) -> str:
+    raw = _read_request(path)
+    return str(_parse(raw).get("job", "")) if raw else ""
+
+
+def serve_tick(
+    base: Path,
+    registry: Mapping[str, JobSpec],
+    spawn: Callable[[list[str]], object],
+) -> None:
+    """Handle all pending requests once: at most one per job, a few per tick,
+    and none for a job that is running right now. Surplus requests are dropped."""
+    seen: set[str] = set()
+    started = 0
+    for path in pending_requests(base):
+        try:
+            key = _job_of(path)
+            if key in seen or started >= MAX_SPAWNS_PER_TICK:
+                _remove(path)
+                outcome = "dropped: duplicate or over the per-tick limit"
+            else:
+                busy = False
+                if key in registry:  # never build a lock path from an unknown name
+                    with job_lock(base, key) as free:
+                        busy = not free
+                if busy:
+                    _remove(path)
+                    outcome = f"dropped: {key} is already running"
+                else:
+                    outcome = handle_request(base, path, registry, spawn)
+                    if outcome == "accepted":
+                        started += 1
+                seen.add(key)
+        except Exception as exc:  # noqa: BLE001 - one bad file must not stop the runner
+            _remove(path)
+            outcome = f"error: {exc.__class__.__name__}"
+        print(f"[jobrun] request {path.name!r}: {outcome}", file=sys.stderr, flush=True)
 
 
 def _spawn(cmd: list[str]) -> None:
@@ -272,10 +375,10 @@ def serve(base: Path, interval: float = 3.0) -> None:
     ensure_dirs(base)
     print(f"[jobrun] watching {base / 'requests'}", file=sys.stderr, flush=True)
     while True:
-        registry = load_registry(base)
-        for path in pending_requests(base):
-            outcome = handle_request(base, path, registry, _spawn)
-            print(f"[jobrun] request {path.name}: {outcome}", file=sys.stderr, flush=True)
+        try:
+            serve_tick(base, load_registry(base), _spawn)
+        except OSError as exc:
+            print(f"[jobrun] cannot read requests: {exc}", file=sys.stderr, flush=True)
         time.sleep(interval)
 
 

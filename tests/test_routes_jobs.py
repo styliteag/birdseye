@@ -85,6 +85,13 @@ def test_plain_user_sees_no_logs_and_cannot_run(nb, jobs_dir):
     assert r.status_code == 403 and list((jobs_dir / "requests").glob("*")) == []
 
 
+def test_demoted_admin_cannot_run(nb, jobs_dir):
+    c = _client(nb, replace(SETTINGS, jobs_dir=str(jobs_dir)))  # logged in as admin
+    nb.data["users/current"] = {**ME, "role": "user"}  # demoted afterwards
+    r = c.post("/jobs/cleanup/run", data={"mode": "run"})
+    assert r.status_code == 403 and list((jobs_dir / "requests").glob("*")) == []
+
+
 def test_bad_job_key_rejected(nb, jobs_dir):
     c = _client(nb, replace(SETTINGS, jobs_dir=str(jobs_dir)))
     assert c.post("/jobs/..%2Fx/run", data={"mode": "run"}).status_code in (404, 422)

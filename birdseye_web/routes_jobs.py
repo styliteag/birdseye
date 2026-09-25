@@ -15,8 +15,10 @@ from birdseye_web.context import (
     ctx,
     current_session,
     log_change,
+    user_api,
 )
 from birdseye_web.jobs import JobError, load_jobs, request_run
+from birdseye_web.nbapi import NetBirdAPI, NetBirdError
 from birdseye_web.sessions import Session
 
 router = APIRouter(prefix="/jobs")
@@ -45,8 +47,15 @@ async def run_job(
     request: Request,
     key: Annotated[str, PathParam(pattern=JOB_KEY)],
     s: Session = Depends(csrf_protect),
+    api: NetBirdAPI = Depends(user_api),
 ) -> Response:
-    if not s.is_admin:
+    # Jobs run with the birdseye container's own keys, so NetBird never sees
+    # this user again: ask it now whether they are (still) owner or admin.
+    try:
+        role = str((await api.get("users/current")).get("role", ""))
+    except NetBirdError:
+        role = ""
+    if role not in ("owner", "admin"):
         return _render(
             request, s, error="Only NetBird owners and admins can start jobs.", status=403
         )

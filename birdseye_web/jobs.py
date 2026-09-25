@@ -42,7 +42,6 @@ class Job:
     mode: str = ""
     log_tail: tuple[str, ...] = ()
     history: tuple[dict, ...] = ()
-    queued: bool = False
 
 
 @dataclass(frozen=True)
@@ -80,17 +79,6 @@ def _status(enabled: bool, state: dict) -> str:
     return "never" if enabled else "disabled"
 
 
-def _queued(base: Path) -> set[str]:
-    """Jobs with a request file not yet picked up (only readable if listable)."""
-    out = set()
-    try:
-        for p in (base / "requests").glob("*.json"):
-            out.add(str(_read(p).get("job", "")))
-    except OSError:
-        pass
-    return out
-
-
 def _forwarder(base: Path, now: float) -> Forwarder:
     hb = _read(base / "state" / "forwarder.json")
     if not hb.get("updated"):
@@ -114,7 +102,6 @@ def load_jobs(base: Path, clock: Callable[[], float] = time.time) -> JobsView:
     registry = _read(base / "registry.json")
     if not registry:
         return JobsView(available=False)
-    queued = _queued(base)
     jobs = []
     for item in registry.get("jobs", []):
         key = str(item.get("key", ""))
@@ -138,7 +125,6 @@ def load_jobs(base: Path, clock: Callable[[], float] = time.time) -> JobsView:
                 mode=str(state.get("mode") or ""),
                 log_tail=tuple(str(x) for x in state.get("log_tail") or ()),
                 history=tuple(h for h in state.get("history") or () if isinstance(h, dict)),
-                queued=key in queued,
             )
         )
     # what you can start first, then what runs on a schedule, then the rest

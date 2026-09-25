@@ -42,7 +42,6 @@
       <td>
         {% if j.status in ('ok', 'failed') %}<span class="pill st-{{ j.status }}">{{ 'ok' if j.status == 'ok' else 'exit ' ~ j.exit_code }}</span>{% endif %}
         {% if j.status == 'running' %}<span class="pill st-running">running</span>{% endif %}
-        {% if j.queued %}<span class="pill">queued</span>{% endif %}
       </td>
       <td><div class="job-actions">
         {% if j.triggerable and session.is_admin %}

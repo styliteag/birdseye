@@ -185,9 +185,18 @@ bind mount (`./data/birdseye:/var/lib/birdseye`). Optional:
       - ./data/birdseye/jobs/requests:/jobs/requests
 ```
 
-(Start the `birdseye` container once first so the directories exist with the
+Start the `birdseye` container once first so the directories exist with the
 right modes: `requests/` is `1733`, writable for the web container's uid 10001
-but not listable.)
+but not listable. **Never mount the jobs directory read-write into the web
+container** — `registry.json` names the commands the birdseye container runs
+as root. The shipped `docker/docker-compose.yml` uses a named volume for
+birdseye's state; to share it, switch it to a bind mount as above.
+
+The runner in the birdseye container re-checks `JOB_TRIGGERS` on every
+request, starts at most one run per job at a time and a few per few seconds,
+drops surplus requests, and only reads small regular files (no symlinks, no
+FIFOs). The web UI asks NetBird for the user's role again before every start,
+so a demoted admin loses the button immediately.
 
 Everyone signed in sees the status. Starting jobs, and reading the log tails
 (which name peers and groups), is limited to NetBird **owners and admins**.
