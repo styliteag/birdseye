@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+-
+
+## [0.6.0] - 2026-09-25
+
+### Added
 - **Jobs page** in birdseye-web: status of every birdseye cron job (schedule,
   last run, exit code, duration, 20-run history, log tail) and of the
   audit-event forwarder (heartbeat, last event, API errors). NetBird owners and
