@@ -28,7 +28,7 @@ async def _get_or_empty(api: NetBirdAPI, path: str) -> list[Any]:
 
 
 async def load_snapshot(api: NetBirdAPI) -> Snapshot:
-    peers, groups, users, policies, checks, networks, keys = await asyncio.gather(
+    peers, groups, users, policies, checks, networks, keys, accounts = await asyncio.gather(
         _get_or_empty(api, "peers"),
         _get_or_empty(api, "groups"),
         _get_or_empty(api, "users"),
@@ -36,6 +36,7 @@ async def load_snapshot(api: NetBirdAPI) -> Snapshot:
         _get_or_empty(api, "posture-checks"),
         _get_or_empty(api, "networks"),
         _get_or_empty(api, "setup-keys"),
+        _get_or_empty(api, "accounts"),
     )
     parts = await asyncio.gather(
         *(
@@ -54,6 +55,7 @@ async def load_snapshot(api: NetBirdAPI) -> Snapshot:
         posture_checks=checks,
         networks=[(n, res, rt) for n, (res, rt) in zip(networks, parts, strict=True)],
         setup_keys=keys,
+        accounts=accounts,
     )
 
 

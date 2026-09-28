@@ -60,10 +60,16 @@ async def test_load_snapshot_tolerates_forbidden_modules(api):
         )
     )
     respx.get(f"{BASE}/api/networks/n1/routers").mock(return_value=httpx.Response(200, json=[]))
+    respx.get(f"{BASE}/api/accounts").mock(
+        return_value=httpx.Response(
+            200, json=[{"id": "acc", "settings": {"groups_propagation_enabled": True}}]
+        )
+    )
     snap = await load_snapshot(api)
     assert set(snap.peers) == {"a"} and snap.users == {}
     assert snap.resources["r1"].network_id == "n1"
     assert snap.setup_key_group_ids == frozenset({"A"})
+    assert snap.groups_propagation is True
 
 
 @respx.mock

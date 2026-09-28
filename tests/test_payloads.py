@@ -7,6 +7,7 @@ from birdseye_web.payloads import (
     parse_ports,
     policy_for_put,
     rule_for_put,
+    user_payload,
 )
 
 
@@ -130,3 +131,15 @@ def test_group_payload_sorted_and_resources_preserved():
 def test_group_payload_requires_name():
     with pytest.raises(PayloadError):
         group_payload("  ", [], [])
+
+
+def test_user_payload_keeps_role_and_block_state():
+    fresh = {"id": "u", "role": "owner", "is_blocked": True, "auto_groups": ["X"], "name": "n"}
+    got = user_payload(fresh, ["b", "a", "a"])
+    assert got == {"role": "owner", "auto_groups": ["a", "b"], "is_blocked": True}
+    assert fresh["auto_groups"] == ["X"]
+
+
+def test_user_payload_requires_role():
+    with pytest.raises(PayloadError, match="role"):
+        user_payload({"id": "u"}, [])

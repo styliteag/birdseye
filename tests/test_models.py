@@ -42,3 +42,10 @@ def test_null_lists_become_empty():
     s = snap(groups=[group("g")], peers=[peer("p")])
     assert s.groups["g"].peer_ids == frozenset()
     assert s.peers["p"].group_ids == frozenset()
+
+
+def test_groups_propagation_from_account_settings():
+    on = snap(accounts=[{"id": "acc", "settings": {"groups_propagation_enabled": True}}])
+    off = snap(accounts=[{"id": "acc", "settings": {"groups_propagation_enabled": False}}])
+    assert on.groups_propagation is True and off.groups_propagation is False
+    assert snap().groups_propagation is None  # accounts not readable

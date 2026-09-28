@@ -146,6 +146,9 @@ class Snapshot:
     posture_checks: Mapping[str, PostureCheck] = field(default_factory=dict)
     # groups that setup keys put new peers into (only visible to admins)
     setup_key_group_ids: frozenset[str] = frozenset()
+    # account setting: a user's auto-group change also moves their existing
+    # peers. None = account settings not readable for this user.
+    groups_propagation: bool | None = None
 
     def names(self) -> dict[str, str]:
         """Display name for any group, resource or peer ID."""
@@ -285,6 +288,7 @@ def build_snapshot(
     posture_checks: Iterable[Raw] = (),
     networks: Iterable[tuple[Raw, Iterable[Raw], Iterable[Raw]]] = (),
     setup_keys: Iterable[Raw] = (),
+    accounts: Iterable[Raw] = (),
 ) -> Snapshot:
     """`networks` items are `(network, resources, routers)` raw triples."""
     nets: dict[str, Network] = {}
@@ -295,6 +299,8 @@ def build_snapshot(
         for r in res_raw:
             res = parse_resource(r, net.id)
             resources[res.id] = res
+    settings = next((a.get("settings") or {} for a in accounts), {})
+    propagation = settings.get("groups_propagation_enabled")
     return Snapshot(
         peers={p.id: p for p in map(parse_peer, peers)},
         groups={g.id: g for g in map(parse_group, groups)},
@@ -309,4 +315,5 @@ def build_snapshot(
         setup_key_group_ids=frozenset(
             g for k in setup_keys if not k.get("revoked") for g in _ids(k.get("auto_groups"))
         ),
+        groups_propagation=None if propagation is None else bool(propagation),
     )

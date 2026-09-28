@@ -32,6 +32,34 @@
       </div>
     </fieldset>
 
+    {% if users_editable and not readonly %}
+    <input type="hidden" name="users_field" value="1">
+    {% for uid in initial_users %}<input type="hidden" name="users_initial" value="{{ uid }}">
+    {% endfor %}
+    <fieldset class="picklist" data-picklist>
+      <legend>Users <span class="muted" data-count>{{ chosen_users|length }} selected</span></legend>
+      <p class="muted small">
+        Adds this group to the user's auto-assigned groups.
+        {% if snap.groups_propagation %}Their devices join or leave it now, and devices they add later join too.
+        {% elif snap.groups_propagation is false %}Only devices they add later join it: group propagation is off in NetBird's settings.
+        {% else %}Devices they add later join it.{% endif %}
+      </p>
+      <div class="picklist-tools">
+        <input type="search" placeholder="Filter by name or email…" data-filter>
+        <label class="check"><input type="checkbox" data-only-selected> selected only</label>
+      </div>
+      <div class="picklist-items">
+        {% for u in people %}
+        <label class="pick" data-text="{{ u.name|lower }} {{ u.email|lower }}">
+          <input type="checkbox" name="users" value="{{ u.id }}" {% if u.id in chosen_users %}checked{% endif %}>
+          <span class="name">{{ u.label }}</span>
+          <span class="muted small">{{ u.role }} · {{ peer_count[u.id] }} device{{ '' if peer_count[u.id] == 1 else 's' }}{% if u.is_blocked %} · blocked{% endif %}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+    {% endif %}
+
     {% if group and group.resource_ids %}
     <p class="muted small">Also contains {{ group.resource_ids|length }} network resource(s). They are kept when you save.</p>
     {% endif %}

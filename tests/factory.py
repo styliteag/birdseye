@@ -87,7 +87,7 @@ def resource(rid: str, groups=(), rtype: str = "subnet") -> dict[str, Any]:
     }
 
 
-def snap(*, peers=(), groups=(), users=(), policies=(), resources=()) -> Snapshot:
+def snap(*, peers=(), groups=(), users=(), policies=(), resources=(), accounts=()) -> Snapshot:
     nets = [
         ({"id": "net1", "name": "net1"}, list(resources), [{"peer": "router", "enabled": True}])
     ]
@@ -97,4 +97,5 @@ def snap(*, peers=(), groups=(), users=(), policies=(), resources=()) -> Snapsho
         users=users,
         policies=policies,
         networks=nets if resources else (),
+        accounts=accounts,
     )

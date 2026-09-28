@@ -26,6 +26,7 @@ ME = {
         "modules": {
             "groups": {"create": True, "update": True},
             "policies": {"create": True, "update": True},
+            "users": {"update": True},
         }
     },
 }
@@ -35,8 +36,18 @@ class FakeNetBird:
     def __init__(self) -> None:
         self.data: dict[str, Any] = {
             "users/current": ME,
-            "users": [{"id": "u1", "name": "Alice", "email": "a@x", "role": "admin"}],
-            "peers": [peer("a1", ["A"], user="u1"), peer("b1", ["B"])],
+            "users": [
+                {"id": "u1", "name": "Alice", "email": "a@x", "role": "admin"},
+                {"id": "u2", "name": "Bob", "email": "b@x", "role": "user", "auto_groups": []},
+                {
+                    "id": "svc",
+                    "name": "Robot",
+                    "role": "user",
+                    "is_service_user": True,
+                    "auto_groups": ["A"],
+                },
+            ],
+            "peers": [peer("a1", ["A"], user="u1"), peer("b1", ["B"]), peer("c1", user="u2")],
             "groups": [
                 group("ALL", "All", peers=["a1", "b1"]),
                 group("A", "Admins", peers=["a1"]),
@@ -49,6 +60,7 @@ class FakeNetBird:
             "posture-checks": [],
             "networks": [],
             "setup-keys": [],
+            "accounts": [{"id": "acc", "settings": {"groups_propagation_enabled": True}}],
         }
         self.writes: list[tuple[str, str, Any]] = []
         self.tokens: list[str] = []

@@ -1,4 +1,4 @@
-"""Raw-dict write payloads for NetBird groups and policies.
+"""Raw-dict write payloads for NetBird groups, users and policies.
 
 The SDK's pydantic models reject valid protocols such as `netbird-ssh`, so
 every write goes out as a plain dict. GET responses embed group objects;
@@ -169,4 +169,16 @@ def group_payload(
         "name": name.strip(),
         "peers": sorted(set(peer_ids)),
         "resources": [r for r in (_resource(x) for x in resources) if r],
+    }
+
+
+def user_payload(fresh: Mapping[str, Any], auto_groups: Iterable[str]) -> Json:
+    """Full user PUT body. NetBird requires role and block state on every
+    update, so they are carried over from a fresh GET."""
+    if not fresh.get("role"):
+        raise PayloadError(f"user {fresh.get('id')!r} has no role")
+    return {
+        "role": str(fresh["role"]),
+        "auto_groups": sorted(set(auto_groups)),
+        "is_blocked": bool(fresh.get("is_blocked", False)),
     }

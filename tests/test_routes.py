@@ -324,3 +324,108 @@ def test_anomalies_page(client, nb):
     assert "Rule targets a single peer" in html and "destination is peer b1" in html
     assert "direct" in client.get("/anomalies?min=warning").text
     assert "Unused group" not in client.get("/anomalies?min=warning").text
+
+
+def test_group_update_assigns_user_auto_groups(client, nb):
+    login(client)
+    token = csrf(client, "/groups/A")
+    data = {"csrf": token, "name": "Admins", "peers": ["a1"], "users_field": "1", "users": ["u2"]}
+    r = client.post("/groups/A", data=data)
+    assert r.status_code == 303, r.text
+    puts = [(p, b) for m, p, b in nb.writes if m == "PUT"]
+    assert [p for p, _ in puts] == ["groups/A", "users/u2"]  # group first, then users
+    assert puts[1][1] == {"role": "user", "auto_groups": ["A"], "is_blocked": False}
+    # u1 (admin, no auto groups) untouched; the service user keeps A although not submitted
+
+
+def test_group_update_removes_user_auto_group(client, nb):
+    nb.data["users"][1]["auto_groups"] = ["A", "B"]
+    login(client)
+    token = csrf(client, "/groups/A")
+    data = {"csrf": token, "name": "Admins", "peers": ["a1"], "users_field": "1"}
+    client.post("/groups/A", data={**data, "users_initial": ["u2"]})
+    assert nb.writes[-1] == (
+        "PUT",
+        "users/u2",
+        {"role": "user", "auto_groups": ["B"], "is_blocked": False},
+    )
+
+
+def test_group_update_without_users_field_leaves_users_alone(client, nb):
+    nb.data["users"][1]["auto_groups"] = ["A"]
+    login(client)
+    token = csrf(client, "/groups/A")
+    client.post("/groups/A", data={"csrf": token, "name": "Admins", "peers": ["a1"]})
+    assert [p for _, p, _ in nb.writes] == ["groups/A"]
+
+
+def test_group_editor_shows_users_only_with_permission(client, nb):
+    login(client)
+    assert 'name="users"' in client.get("/groups/A").text
+    nb.data["users/current"] = {**nb.data["users/current"], "permissions": {"modules": {}}}
+    client.cookies.clear()
+    login(client)  # new session reads the new permissions
+    assert 'name="users"' not in client.get("/groups/A").text
+
+
+def test_group_preview_includes_user_propagation(client):
+    login(client)
+    token = csrf(client)
+    r = client.post(
+        "/groups/A/preview",
+        data={"peers": ["a1"], "users_field": "1", "users": ["u2"]},
+        headers={"X-CSRF-Token": token},
+    )
+    assert "2 gained" in r.text  # c1 (Bob's peer) -> b1 and -> r1
+
+
+def test_group_create_assigns_users(client, nb):
+    login(client)
+    token = csrf(client, "/groups/new")
+    data = {"csrf": token, "name": "New", "users_field": "1", "users": ["u2"]}
+    r = client.post("/groups", data=data)
+    assert r.status_code == 303
+    method, path, body = nb.writes[-1]
+    assert (method, path) == ("PUT", "users/u2") and body["auto_groups"] == ["new-1"]
+
+
+def test_group_update_leaves_users_assigned_elsewhere_alone(client, nb):
+    # Bob got group A after this form was rendered (not in users_initial).
+    nb.data["users"][1]["auto_groups"] = ["A"]
+    login(client)
+    token = csrf(client, "/groups/A")
+    data = {"csrf": token, "name": "Admins", "peers": ["a1"], "users_field": "1"}
+    client.post("/groups/A", data=data)
+    assert [p for _, p, _ in nb.writes] == ["groups/A"]
+
+
+def test_group_editor_renders_initial_users(client, nb):
+    nb.data["users"][1]["auto_groups"] = ["A"]
+    login(client)
+    assert 'name="users_initial" value="u2"' in client.get("/groups/A").text
+
+
+@pytest.mark.parametrize(
+    "accounts,text",
+    [
+        ([{"id": "acc", "settings": {"groups_propagation_enabled": True}}], "join or leave it now"),
+        ([{"id": "acc", "settings": {"groups_propagation_enabled": False}}], "propagation is off"),
+        ([], "Devices they add later join it."),
+    ],
+)
+def test_group_editor_propagation_note(client, nb, accounts, text):
+    nb.data["accounts"] = accounts
+    login(client)
+    assert text in client.get("/groups/A").text
+
+
+def test_group_preview_without_propagation_shows_no_gain(client, nb):
+    nb.data["accounts"][0]["settings"]["groups_propagation_enabled"] = False
+    login(client)
+    token = csrf(client)
+    r = client.post(
+        "/groups/A/preview",
+        data={"peers": ["a1"], "users_field": "1", "users": ["u2"]},
+        headers={"X-CSRF-Token": token},
+    )
+    assert "gained" not in r.text

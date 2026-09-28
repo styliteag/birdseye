@@ -68,3 +68,61 @@ def test_group_membership_change_both_sides():
     assert [(x.src.id, x.dst.id) for x in d.lost] == [("a1", "b1")]
     assert "A" not in after.peers["a1"].group_ids
     assert "A" in before.peers["a1"].group_ids
+
+
+def _users_base(propagation):
+    from tests.factory import user
+
+    return snap(
+        groups=[group("A", peers=["a1"]), group("B", peers=["b1"])],
+        peers=[peer("a1", ["A"], user="u1"), peer("c1", user="u2"), peer("b1", ["B"])],
+        users=[
+            user("u1", auto_groups=["A"]),
+            user("u2"),
+            {**user("svc"), "is_service_user": True, "auto_groups": ["A"]},
+        ],
+        policies=[policy("p", rule(["A"], ["B"]))],
+        accounts=[{"id": "acc", "settings": {"groups_propagation_enabled": propagation}}],
+    )
+
+
+def test_user_group_changes_never_touches_service_users():
+    from birdseye_web.diff import user_group_changes
+
+    added, removed = user_group_changes(_users_base(True), "A", ["u2"])
+    assert added == frozenset({"u2"}) and removed == frozenset({"u1"})
+
+
+def test_user_auto_groups_propagate_to_their_peers():
+    from birdseye_web.diff import with_user_auto_groups
+
+    before = _users_base(True)
+    after = with_user_auto_groups(before, "A", added={"u2"}, removed={"u1"})
+    assert after.users["u2"].auto_groups == frozenset({"A"})
+    assert "A" not in after.users["u1"].auto_groups
+    assert after.groups["A"].peer_ids == frozenset({"c1"})
+    assert "A" in after.peers["c1"].group_ids and "A" not in after.peers["a1"].group_ids
+    d = access_delta(before, after)
+    assert [(x.src.id, x.dst.id) for x in d.gained] == [("c1", "b1")]
+    assert [(x.src.id, x.dst.id) for x in d.lost] == [("a1", "b1")]
+    assert before.users["u2"].auto_groups == frozenset()
+
+
+def test_user_auto_groups_without_propagation_leave_peers_alone():
+    from birdseye_web.diff import with_user_auto_groups
+
+    before = _users_base(False)
+    after = with_user_auto_groups(before, "A", added={"u2"}, removed={"u1"})
+    assert after.users["u2"].auto_groups == frozenset({"A"})
+    assert after.peers == before.peers and after.groups == before.groups
+    assert access_delta(before, after).empty
+
+
+def test_user_group_changes_uses_initial_selection():
+    from birdseye_web.diff import user_group_changes
+
+    # u1 has A in the snapshot but was not shown checked: leave them alone.
+    assert user_group_changes(_users_base(True), "A", ["u2"], initial=[]) == (
+        frozenset({"u2"}),
+        frozenset(),
+    )

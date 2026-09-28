@@ -15,7 +15,7 @@ It ships as its own image (`styliteag/birdseye-web`), separate from the
 | **Matrix** | Who may access whom, as a grid. Five views: Group × Group, Peer × Peer, Group × Resource, Peer × Resource, User × Destination. Filter by name, protocol, port; hide “All”; show only posture-gated access. Click a cell to see *which* policy allows it. |
 | **Matrix editing** | In the group views: click a filled cell to remove a group from the rule, disable or delete the policy; click an empty cell to create an allow policy. Every action shows the gained/lost access first and only writes on *Confirm*. |
 | **Reachability** | “Can peer X reach Y on tcp/22?” with the policies and groups that make it so. |
-| **Groups** | Create, rename, delete; edit membership with a searchable checklist. A live panel shows who gains or loses access *before* you save. |
+| **Groups** | Create, rename, delete; edit membership with a searchable checklist. Assign users too: the group becomes one of their auto-assigned groups, so their devices join it (existing devices only with NetBird's *group propagation* on). A live panel shows who gains or loses access *before* you save. |
 | **Policies** | List with on/off switch; editor for multi-rule policies (groups or a single resource/peer as destination, `netbird-ssh`, ports and ranges, bidirectional, posture checks) with the same live effect preview. |
 | **Jobs** | Status of the `birdseye` container's cron jobs and audit-event forwarder: last run, result, duration, history, log tail. Owners and admins can start selected jobs (by default `cleanup` and `maintenance`, both also as dry run). Optional, see [Jobs page](#jobs-page-optional). |
 | **Anomalies** | Configuration smells: rules that bypass groups, devices whose groups drifted from their user's defaults, peers inside resource groups, empty or missing groups in policies, resources nobody routes or reaches, unused groups, disabled policies. |
@@ -212,6 +212,7 @@ Every start is logged by both containers (`birdseye_web.audit` and
 | *“Login session expired or invalid”* | The login took longer than 10 minutes, or the container restarted in between. Sign in again. |
 | Signed out after an update | Expected: sessions are in memory. |
 | Buttons for editing are missing | Your NetBird role lacks `policies`/`groups` update permission. |
+| No *Users* list in the group editor | Your role lacks `users` update permission, or the group comes from your IdP (JWT group sync) or an integration — NetBird overwrites those on the next sync. |
 | A change made in the NetBird dashboard is not visible | The snapshot is cached for `WEB_CACHE_TTL` seconds; reload after that. |
 
 ## Security notes
