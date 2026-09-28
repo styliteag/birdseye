@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+-
+
+## [0.8.0] - 2026-09-28
+
+### Added
 - birdseye-web group editor: assign **users** as well as devices. Selecting a
   user adds the group to their auto-assigned groups (`PUT /users/{id}`), so
   their devices join it — existing devices too when the account has group
