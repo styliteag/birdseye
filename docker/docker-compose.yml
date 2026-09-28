@@ -55,12 +55,10 @@ services:
       # Cron jobs (empty schedule = disabled)
       CRON_CLEANUP_EPHEMERAL: ${CRON_CLEANUP_EPHEMERAL:-*/15 * * * *}
       CRON_BACKUP_NETBIRD: ${CRON_BACKUP_NETBIRD:-}
-      # Account mirror / standby clone / offsite archive. Every MIRROR_*,
-      # CLONE_* and OFFSITE_* setting reaches the container through env_file
+      # Standby clone / offsite archive. Every CLONE_* and OFFSITE_* setting reaches the container through env_file
       # above — including the per-target CLONE_<NAME>_* names, which depend on
       # what you put in CLONE_TARGETS and so cannot be listed here.
       # See .env.example and the mounts below.
-      CRON_MIRROR_ACCOUNT: ${CRON_MIRROR_ACCOUNT:-}
       CRON_CLONE_STANDBY: ${CRON_CLONE_STANDBY:-}
       CRON_BACKUP_OFFSITE: ${CRON_BACKUP_OFFSITE:-}
       CRON_NETBIRD_MAINTENANCE: ${CRON_NETBIRD_MAINTENANCE:-}

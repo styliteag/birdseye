@@ -13,8 +13,6 @@ set -euo pipefail
     CHECKMK_SPOOL_DIR \
     MAINTENANCE_POSTURE_CHECK MAINTENANCE_POSTURE_RULE MAINTENANCE_ALLOW_PING \
     MAINTENANCE_DRY_RUN MAINTENANCE_EMAIL_TO MAINTENANCE_SPOOL_MAX_AGE \
-    MIRROR_URL MIRROR_API_KEY MIRROR_APPLY MIRROR_PRUNE MIRROR_SECTIONS \
-    MIRROR_PROTECTED_GROUPS MIRROR_SNAPSHOT_DIR \
     CLONE_SSH_HOST CLONE_SSH_PORT CLONE_SSH_KEY CLONE_SSH_KNOWN_HOSTS CLONE_SSH_STRICT \
     CLONE_TARGETS CLONE_PRIMARY_HOST CLONE_STANDBY_IP CLONE_PAYLOAD_DIR CLONE_STAGE_DIR \
     CLONE_DB_PATHS CLONE_DB_SUBDIR CLONE_CONFIG_FILES CLONE_TARGET_PATHS CLONE_SHARED_PATHS \
@@ -113,21 +111,9 @@ else
   job_off backup "backup" "CRON_BACKUP_NETBIRD not set"
 fi
 
-# --- account mirror to a second controller -----------------------------------
-# Without MIRROR_APPLY the scheduled run is a dry run: it reports the drift it
-# would fix and writes nothing. Deliberate — this job can delete.
+# The account mirror was removed in 0.7.0 (clone_standby covers failover).
 if [ -n "${CRON_MIRROR_ACCOUNT:-}" ]; then
-  gaps=$(missing NB_URL NB_API_KEY MIRROR_URL MIRROR_API_KEY)
-  if [ -z "$gaps" ]; then
-    mode="dry-run"
-    [ -n "${MIRROR_APPLY:-}" ] && mode="apply"
-    add_job mirror "$CRON_MIRROR_ACCOUNT" "/app/.venv/bin/python /app/mirror_account.py" "mirror ($mode)"
-  else
-    echo "[entrypoint] CRON_MIRROR_ACCOUNT set but incomplete — mirror cron disabled; need:$gaps" >&2
-    job_off mirror "mirror" "need:$gaps"
-  fi
-else
-  job_off mirror "mirror" "CRON_MIRROR_ACCOUNT not set"
+  echo "[entrypoint] CRON_MIRROR_ACCOUNT is set but the account mirror was removed in 0.7.0 — ignored" >&2
 fi
 
 # --- account maintenance: posture attachment, then ICMP companions -----------

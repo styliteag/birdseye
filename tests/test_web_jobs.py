@@ -15,7 +15,7 @@ def jobs_dir(tmp_path):
             "cleanup\tcleanup\t*/15 * * * *\t/app/cleanup.py\t",
             "maintenance\tmaintenance (posture)\t0 * * * *\t/app/maint.py\t",
             "backup\tbackup\t0 3 * * 0\t/app/run_backup.sh\t",
-            "mirror\tmirror\t\t\tCRON_MIRROR_ACCOUNT not set",
+            "clone-standby\tclone-standby\t\t\tCRON_CLONE_STANDBY not set",
         ],
         triggers={"cleanup", "maintenance"},
     )
@@ -44,7 +44,7 @@ def test_load_jobs_merges_registry_and_state(jobs_dir):
     by = {j.key: j for j in view.jobs}
     assert by["cleanup"].status == "ok" and by["cleanup"].log_tail == ("ok",)
     assert by["backup"].status == "never"
-    assert by["mirror"].status == "disabled" and "not set" in by["mirror"].reason
+    assert by["clone-standby"].status == "disabled" and "not set" in by["clone-standby"].reason
     assert [j.key for j in view.jobs][:2] == ["cleanup", "maintenance"]
 
 
@@ -100,7 +100,7 @@ def test_request_run_writes_request_file(jobs_dir):
     "key,mode,msg",
     [
         ("backup", "run", "not triggerable"),
-        ("mirror", "run", "not triggerable"),
+        ("clone-standby", "run", "not triggerable"),
         ("nope", "run", "unknown"),
         ("cleanup", "delete", "mode"),
     ],

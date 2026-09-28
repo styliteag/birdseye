@@ -32,9 +32,9 @@ A second, independent image, **`birdseye-web`**, is a web UI that shows
 with a preview of the effect — signed in with your own NetBird account.
 See [Web UI](#web-ui-birdseye-web).
 
-Three further optional jobs copy the deployment somewhere else — a
-configuration mirror onto a second controller, a database clone onto a
-standby you can fail over to, and a dated config archive over ssh. See
+Two further optional jobs copy the deployment somewhere else — a
+database clone onto a standby you can fail over to, and a dated config
+archive over ssh. See
 [Replication and off-host copies](#replication-and-off-host-copies).
 
 Highlights:
@@ -221,14 +221,13 @@ All knobs are env vars. Full list with defaults in
 | `BACKUP_MAX_ATTACHMENT_MB` | `20` | Above this, an error mail is sent in place of the attachment (applies to each mail) |
 | `BACKUP_LABEL` | _(empty)_ | Free-form tag in the subject and filename (e.g. `prod`) |
 | `BACKUP_EXCLUDE` | _(empty)_ | Comma-separated 7z wildcards excluded from the volume archive (case-insensitive, recursive) |
-| `CRON_MIRROR_ACCOUNT` | _(empty = disabled)_ | Schedule for `mirror_account.py`. The scheduled run is a dry run unless `MIRROR_APPLY=true` |
 | `CRON_CLONE_STANDBY` | _(empty = disabled)_ | Schedule for `clone_standby.py run` (typical: `17 */6 * * *`) |
 | `CRON_BACKUP_OFFSITE` | _(empty = disabled)_ | Schedule for `backup_offsite.py` (typical: `42 3 * * *`) |
 | `CRON_NETBIRD_MAINTENANCE` | _(empty = disabled)_ | Schedule for `netbird_maintenance.py` — attaches the posture check, then reconciles the ICMP companions (typical: `30 * * * *`) |
 | `CHECKMK_SPOOL_DIR` | _(empty = disabled)_ | Mount your Checkmk agent's spool directory here and the unattended jobs write a local check. The filename carries a max age, so a cron that stops running goes stale on its own — something mail cannot tell you |
 | `TZ` | `UTC` | Timezone for displayed timestamps |
 
-The `MIRROR_*`, `CLONE_*` and `OFFSITE_*` settings behind the last three
+The `CLONE_*` and `OFFSITE_*` settings behind the clone and offsite jobs
 are documented inline in [`docker/.env.example`](docker/.env.example) and
 summarised in [Replication and off-host copies](#replication-and-off-host-copies).
 
@@ -380,12 +379,11 @@ docker exec birdseye /app/.venv/bin/python /app/netbird_maintenance.py --dry-run
 
 ## Replication and off-host copies
 
-Three optional jobs copy a NetBird deployment somewhere else. They solve
+Two optional jobs copy a NetBird deployment somewhere else. They solve
 different problems and can be run together:
 
 | Job | Copies | Good for | Not good for |
 |---|---|---|---|
-| `mirror_account.py` | configuration, via the API | keeping a second controller's config in step — lab, staging, second region | failover: peers cannot be created through the API |
 | `clone_standby.py` | the database + config files, over ssh | **failover** — move one DNS record and the standby *is* the controller | reading an old value: it only holds the latest state |
 | `backup_offsite.py` | whole directories, as dated `tar.gz` | digging an old compose file, `.env` or ACME store out of three weeks ago | fast recovery: it is an archive, not a running system |
 
@@ -393,36 +391,6 @@ Nothing about any particular deployment is baked in: every host, path,
 directory and stack name is an env var, and each job disables itself when
 its inputs are empty. Full list with comments in
 [`docker/.env.example`](docker/.env.example).
-
-### Account mirror
-
-Copies posture checks, groups, networks, resources, routers, policies,
-routes, setup keys, DNS, users and account settings from `NB_URL` onto a
-second controller. Objects are matched **by name**, not by ID (IDs are
-per-instance), so the sync is idempotent and can be re-run.
-
-```bash
-MIRROR_URL=https://netbird2.example.com
-MIRROR_API_KEY=nbp_…
-MIRROR_APPLY=true          # without this a scheduled run only reports drift
-CRON_MIRROR_ACCOUNT=25 * * * *
-```
-
-The source is opened through a client that rejects every method except
-`GET`, and the run aborts if both URLs resolve to the same host. Pruning
-is on by default — this is a mirror, not an additive import; set
-`MIRROR_PRUNE=false` if you want it to only ever add. Run it by hand
-first, it is dry-run by default:
-
-```bash
-docker exec birdseye /app/.venv/bin/python /app/mirror_account.py
-docker exec birdseye /app/.venv/bin/python /app/mirror_account.py --apply
-```
-
-Peers cannot be created through the API — they enrol themselves with a
-setup key — so anything pointing at a peer is skipped until a peer of
-that name exists on the target. That is also why this is not a failover
-target.
 
 ### Standby clone
 
@@ -551,8 +519,7 @@ that were already in this repo. `supervisord` is PID 1, supervising:
   schedule and, when configured, `run_backup.sh` on `CRON_BACKUP_NETBIRD`
   (which sequentially invokes `backup_volumes.py` and `export_objects.py`
   depending on what is configured), plus `netbird_maintenance.py`,
-  `mirror_account.py`, `clone_standby.py run` and `backup_offsite.py` on their
-  own schedules
+  `clone_standby.py run` and `backup_offsite.py` on their own schedules
 
 A job whose prerequisites are incomplete is not installed at all; the
 entrypoint logs which env vars are missing and lists the schedules it did
@@ -568,7 +535,6 @@ docker exec birdseye /app/.venv/bin/python /app/cleanup_ephemeral.py --dry-run
 docker exec birdseye /app/.venv/bin/python /app/allow_ping.py --help
 docker exec birdseye /app/.venv/bin/python /app/manage_posture.py --help
 docker exec birdseye /app/.venv/bin/python /app/setup_keys.py --help
-docker exec birdseye /app/.venv/bin/python /app/mirror_account.py        # dry run
 docker exec birdseye /app/.venv/bin/python /app/clone_standby.py status
 docker exec birdseye /app/.venv/bin/python /app/backup_offsite.py --list
 ```

@@ -87,16 +87,16 @@ def test_registry_roundtrip_and_triggerable_allowlist(jobs):
     lines = [
         "cleanup\tcleanup\t*/15 * * * *\t/app/.venv/bin/python /app/cleanup_ephemeral.py\t",
         "backup\tbackup (volumes)\t0 3 * * 0\t/app/run_backup.sh\t",
-        "mirror\tmirror\t\t\tneed: MIRROR_URL",
+        "clone-standby\tclone-standby\t\t\tneed: CLONE_SSH_HOST",
     ]
-    specs = jobrun.parse_registry_lines(lines, triggers={"cleanup", "mirror"})
+    specs = jobrun.parse_registry_lines(lines, triggers={"cleanup", "clone-standby"})
     jobrun.write_registry(jobs, specs)
     reg = jobrun.load_registry(jobs)
     assert reg["cleanup"].triggerable and reg["cleanup"].dry_run_arg == "--dry-run"
     assert reg["cleanup"].command == ["/app/.venv/bin/python", "/app/cleanup_ephemeral.py"]
     assert not reg["backup"].triggerable  # not in allowlist
-    assert not reg["mirror"].enabled and not reg["mirror"].triggerable  # disabled wins
-    assert reg["mirror"].reason == "need: MIRROR_URL"
+    assert not reg["clone-standby"].enabled and not reg["clone-standby"].triggerable  # disabled wins
+    assert reg["clone-standby"].reason == "need: CLONE_SSH_HOST"
 
 
 def test_triggers_env_default(monkeypatch):

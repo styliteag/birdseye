@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
--
+### Removed
+- **Account mirror** (`mirror_account.py`, `CRON_MIRROR_ACCOUNT`, all
+  `MIRROR_*` settings). It could not serve as a failover target (peers cannot
+  be created through the API), deleted on the target by default, and
+  `clone_standby.py` covers failover. A leftover `CRON_MIRROR_ACCOUNT` is
+  ignored with a warning in the container log; remove it and the `MIRROR_*`
+  lines from your `.env`.
 
 ## [0.6.0] - 2026-09-25
 

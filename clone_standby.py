@@ -8,8 +8,8 @@
     uv run clone_standby.py status | rollback [target]
     uv run clone_standby.py run                # stage + install every target + drill (for cron)
 
-Why this exists next to `mirror_account.py`: peers cannot be created through the
-API — they enrol themselves. An object-level mirror can therefore never be a
+Why a database copy and not an API sync: peers cannot be created through the
+API — they enrol themselves. An object-level copy can therefore never be a
 failover target. A copy of the *database* can.
 
 How it works
