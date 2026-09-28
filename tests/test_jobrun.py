@@ -95,7 +95,9 @@ def test_registry_roundtrip_and_triggerable_allowlist(jobs):
     assert reg["cleanup"].triggerable and reg["cleanup"].dry_run_arg == "--dry-run"
     assert reg["cleanup"].command == ["/app/.venv/bin/python", "/app/cleanup_ephemeral.py"]
     assert not reg["backup"].triggerable  # not in allowlist
-    assert not reg["clone-standby"].enabled and not reg["clone-standby"].triggerable  # disabled wins
+    assert (
+        not reg["clone-standby"].enabled and not reg["clone-standby"].triggerable
+    )  # disabled wins
     assert reg["clone-standby"].reason == "need: CLONE_SSH_HOST"
 
 
