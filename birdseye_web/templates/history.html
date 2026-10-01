@@ -6,8 +6,8 @@
   <div class="card"><p class="muted">At least two snapshots are needed for a comparison. The <code>config_history.py</code> job writes one per run.</p></div>
 {% else %}
 <form class="filter-bar" method="get" action="/history">
-  <label class="small">from <select name="from">{% for x in snaps %}<option value="{{ x.stamp }}" {% if x.stamp == old %}selected{% endif %}>{{ x.at.strftime('%Y-%m-%d %H:%M') }} UTC</option>{% endfor %}</select></label>
-  <label class="small">to <select name="to">{% for x in snaps %}<option value="{{ x.stamp }}" {% if x.stamp == new %}selected{% endif %}>{{ x.at.strftime('%Y-%m-%d %H:%M') }} UTC</option>{% endfor %}</select></label>
+  <label class="small">from <select name="from">{% for x in snaps %}<option value="{{ x.stamp }}" {% if x.stamp == old %}selected{% endif %}>{{ x.at.strftime('%Y-%m-%d %H:%M:%S') }} UTC</option>{% endfor %}</select></label>
+  <label class="small">to <select name="to">{% for x in snaps %}<option value="{{ x.stamp }}" {% if x.stamp == new %}selected{% endif %}>{{ x.at.strftime('%Y-%m-%d %H:%M:%S') }} UTC</option>{% endfor %}</select></label>
   <button>Compare</button>
 </form>
 <p class="muted small">Configuration only: online state, last seen, client versions and usage counters are ignored.</p>
