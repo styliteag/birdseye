@@ -58,4 +58,8 @@ def client_from_env(*, key: str = "user", fallback_to_user: bool = False) -> API
     if not token:
         raise SystemExit(f"{token_var} must be set in .env")
 
-    return APIClient(host=host_from_url(url), api_token=token)
+    host = host_from_url(url)
+    # The SDK defaults to https; keep an explicit http:// (local test setups).
+    if url.lower().startswith("http://"):
+        host = f"http://{host}"
+    return APIClient(host=host, api_token=token)

@@ -7,8 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
--
+### Fixed
+- An `http://` `NB_URL` (local test setups) was silently turned into HTTPS
+  by the scripts and the event forwarder; the scheme is now kept.
 
 ## [0.9.2] - 2026-10-01
 
