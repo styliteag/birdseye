@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+-
+
+## [0.10.0] - 2026-10-01
+
+### Added
 - birdseye-web **My access** (`/my-access`): your own devices and what each
   can reach – with services for admins and auditors, via NetBird's
   `accessible-peers` for regular users.
