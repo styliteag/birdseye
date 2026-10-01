@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+-
+
+## [0.9.2] - 2026-10-01
+
 ### Fixed
 - birdseye-web: the Jobs page's run history and the audit log's from/to date
   filter use the viewer's time zone too (the filter counts local days, not
