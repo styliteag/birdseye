@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   type, shows each object's versions, and restores a single policy or group
   (`PUT`, or `POST` when it was deleted) after an access preview; a policy
   whose groups or posture checks are gone is not restored.
+- birdseye-web **resources list** (`/resources`): all network resources with
+  address kind and size (subnets flagged), network and router state,
+  resource groups, the policies that reach them and how many peers can
+  reach them; filters for unreachable and wider-than-one-host resources.
 - History page: changes are listed field by field (`rules › web › ports:
   + 8443`, old → new, IDs as names) instead of raw JSON, and a notice shows
   when the configuration changed after the newest snapshot (or a snapshot

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Resources{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Resources <span class="count">{{ rows|length }}</span></h1>
+</div>
+<form class="filter-bar" hx-get="/resources" hx-target="#resource-rows" hx-trigger="input changed delay:250ms" hx-push-url="true">
+  <input type="search" name="q" value="{{ query.q }}" placeholder="Search name, address, network…">
+  <select name="network">
+    <option value="">all networks</option>
+    {% for n in networks %}<option value="{{ n.id }}" {% if query.network == n.id %}selected{% endif %}>{{ n.name }}</option>{% endfor %}
+  </select>
+  <label class="check"><input type="checkbox" name="unreached" value="1" {% if query.unreached %}checked{% endif %}> nobody can reach</label>
+  <label class="check"><input type="checkbox" name="broad" value="1" {% if query.broad %}checked{% endif %}> wider than one host</label>
+</form>
+<p class="muted small">A resource is what you reach inside a network: one IP (<code>/32</code>), a subnet, a domain or a wildcard domain. Policies reach it directly or through its resource groups; a router of its network must be active. Least privilege prefers single-host resources over whole subnets.</p>
+<table class="list">
+  <thead><tr><th>Resource</th><th>Address</th><th>Network / routers</th><th>Resource groups</th><th>Policies</th><th class="num">Peers can reach</th></tr></thead>
+  <tbody id="resource-rows">{% include "_resource_rows.html" %}</tbody>
+</table>
+{% endblock %}

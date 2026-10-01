@@ -204,3 +204,13 @@ def test_anomaly_links_to_network_editors(client, nb):
     login(client)
     html = client.get("/anomalies").text
     assert 'href="/networks/n1/routers/new"' in html and 'href="/resources/r1">resource' in html
+
+
+def test_resource_list(client):
+    login(client)
+    html = client.get("/resources").text
+    assert 'href="/networks/n1/resources/r1">nas</a>' in html
+    assert 'href="/policies/p1"' in html  # p1 reaches r1 through Servers
+    assert "/matrix?view=resources-peers&amp;cq=nas" in html
+    rows = client.get("/resources?unreached=1", headers={"HX-Target": "resource-rows"}).text
+    assert "<html" not in rows and "No resource found" in rows

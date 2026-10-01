@@ -1,0 +1,19 @@
+{% for row in rows %}
+{% set r = row.resource %}
+<tr>
+  <td>{{ {'host': '▣', 'subnet': '▦', 'domain': '◎', 'wildcard': '✱'}[row.kind] }}
+    <a href="/networks/{{ r.network_id }}/resources/{{ r.id }}">{{ r.name }}</a>
+    {% if not r.enabled %} <span class="pill">off</span>{% endif %}</td>
+  <td><code>{{ r.address }}</code>
+    {% if row.kind == 'subnet' %} <span class="pill {{ 'sev-warning' if row.broad }}" title="Least privilege prefers single-host /32 resources">{{ row.size }} addresses</span>
+    {% elif row.kind == 'wildcard' %} <span class="pill">wildcard</span>{% endif %}</td>
+  <td>{% if row.network %}<a href="/networks/{{ row.network.id }}">{{ row.network.name }}</a>
+      {% if not row.routed %} <span class="pill sev-warning">no active router</span>{% endif %}
+    {% else %}<span class="muted">–</span>{% endif %}</td>
+  <td>{% for gid in r.group_ids|sort %}<a class="pill" href="/groups/{{ gid }}">{{ snap.groups[gid].name if gid in snap.groups else gid }}</a> {% else %}<span class="muted">none</span>{% endfor %}</td>
+  <td>{% for p in row.policies %}<a class="pill" href="/policies/{{ p.id }}">{{ p.name }}{% if not p.enabled %} (off){% endif %}</a> {% else %}<a class="small" href="/policies/new?dst_resource={{ r.id }}">+ policy</a>{% endfor %}</td>
+  <td class="num">{% if row.reached_by %}<a href="/matrix?view=resources-peers&amp;cq={{ r.name|urlencode }}">{{ row.reached_by }}</a>{% else %}<span class="pill sev-warning">0</span>{% endif %}</td>
+</tr>
+{% else %}
+<tr><td colspan="6" class="empty">No resource found.</td></tr>
+{% endfor %}

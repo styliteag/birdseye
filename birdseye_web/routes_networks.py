@@ -35,6 +35,7 @@ from birdseye_web.payloads import (
     resource_payload,
     router_payload,
 )
+from birdseye_web.resources_view import ResourceQuery, resource_rows
 from birdseye_web.sessions import Session
 
 router = APIRouter()
@@ -201,6 +202,31 @@ async def network_delete(
 
 
 # --- resources -------------------------------------------------------------------------
+
+
+@router.get("/resources")
+async def resource_list(
+    request: Request, s: Session = Depends(current_session), snap: Snapshot = Depends(snapshot)
+) -> Response:
+    """All resources across networks, with groups, policies, routing and reach."""
+    q = ResourceQuery.from_params(request.query_params)
+    rows = resource_rows(snap, q)
+    tpl = (
+        "_resource_rows.html"
+        if request.headers.get("HX-Target") == "resource-rows"
+        else "resources.html"
+    )
+    return TEMPLATES.TemplateResponse(
+        request,
+        tpl,
+        {
+            "session": s,
+            "snap": snap,
+            "rows": rows,
+            "query": q,
+            "networks": sorted(snap.networks.values(), key=lambda n: n.name.lower()),
+        },
+    )
 
 
 @router.get("/resources/{rid}")
