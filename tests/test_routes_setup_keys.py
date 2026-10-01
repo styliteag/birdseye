@@ -139,3 +139,44 @@ def test_hidden_for_roles_without_permission(client, nb, monkeypatch):
 def test_nav_for_admin(client):
     login(client)
     assert 'href="/setup-keys"' in client.get("/matrix").text
+
+
+def _bulk(client, action, keys):
+    token = csrf(client, "/setup-keys")
+    return client.post("/setup-keys/bulk", data={"csrf": token, "action": action, "keys": keys})
+
+
+def test_bulk_revoke_skips_already_revoked(client, nb):
+    login(client)
+    r = _bulk(client, "revoke", ["k1", "k2"])
+    assert r.status_code == 303 and "revoked=1" in r.headers["location"]
+    assert "skipped=1" in r.headers["location"]
+    assert nb.writes == [("PUT", "setup-keys/k1", {"auto_groups": ["A"], "revoked": True})]
+
+
+def test_bulk_delete_only_revoked(client, nb):
+    login(client)
+    r = _bulk(client, "delete", ["k1", "k2"])
+    assert r.status_code == 303 and "deleted=1" in r.headers["location"]
+    assert nb.writes == [("DELETE", "setup-keys/k2", None)]
+
+
+def test_bulk_ignores_unknown_keys_and_actions(client, nb):
+    login(client)
+    assert _bulk(client, "revoke", ["nope"]).status_code == 303
+    assert _bulk(client, "explode", ["k1"]).status_code == 400
+    assert nb.writes == []
+
+
+def test_bulk_needs_csrf(client, nb):
+    login(client)
+    r = client.post("/setup-keys/bulk", data={"action": "delete", "keys": ["k2"]})
+    assert r.status_code == 403 and nb.writes == []
+
+
+def test_bulk_result_flash_and_checkboxes(client):
+    login(client)
+    html = client.get("/setup-keys").text
+    assert 'name="keys" value="k1"' in html and "data-select-all" in html
+    html = client.get("/setup-keys?revoked=2&skipped=1&failed=0").text
+    assert "Revoked 2" in html and "skipped 1" in html

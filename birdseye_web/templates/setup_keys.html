@@ -10,11 +10,28 @@
   </nav>
   {% if can_create %}<a class="button primary" href="/setup-keys/new">+ New setup key</a>{% endif %}
 </div>
+{% if bulk.revoked or bulk.deleted or bulk.skipped or bulk.failed %}
+<div class="flash {{ 'err' if bulk.failed else 'ok' }}">
+  {% if bulk.revoked %}Revoked {{ bulk.revoked }}. {% endif %}{% if bulk.deleted %}Deleted {{ bulk.deleted }}. {% endif %}
+  {% if bulk.skipped %}skipped {{ bulk.skipped }} (already revoked, or not revoked yet for delete). {% endif %}
+  {% if bulk.failed %}{{ bulk.failed }} failed – see the server log.{% endif %}
+</div>
+{% endif %}
+<form id="bulk-form" method="post" action="/setup-keys/bulk">
+<input type="hidden" name="csrf" value="{{ session.csrf }}">
+{% if can_bulk %}
+<div class="filter-bar">
+  <span class="muted small" data-bulk-count>0 selected</span>
+  <button name="action" value="revoke" data-confirm="Revoke the selected setup keys? This cannot be undone.">Revoke selected</button>
+  <button class="danger" name="action" value="delete" data-confirm="Delete the selected setup keys? Only revoked keys are deleted; others are skipped.">Delete selected</button>
+</div>
+{% endif %}
 <table class="list">
-  <thead><tr><th>Name</th><th>State</th><th>Type</th><th class="num">Used</th><th>Expires</th><th>Last used</th><th>Auto-assigned groups</th></tr></thead>
+  <thead><tr>{% if can_bulk %}<th><input type="checkbox" data-select-all title="Select all shown"></th>{% endif %}<th>Name</th><th>State</th><th>Type</th><th class="num">Used</th><th>Expires</th><th>Last used</th><th>Auto-assigned groups</th></tr></thead>
   <tbody>
   {% for k in keys %}
   <tr>
+    {% if can_bulk %}<td><input type="checkbox" name="keys" value="{{ k.id }}"></td>{% endif %}
     <td><a href="/setup-keys/{{ k.id }}">{{ k.name }}</a>{% if k.ephemeral %} <span class="pill">ephemeral</span>{% endif %}</td>
     <td><span class="pill key-{{ states[k.id] }}">{{ states[k.id] }}</span></td>
     <td>{{ k.type }}</td>
@@ -24,8 +41,9 @@
     <td>{% for gid in k.auto_groups|sort %}<span class="pill">{{ snap.groups[gid].name if gid in snap.groups else gid }}</span> {% else %}<span class="muted">none</span>{% endfor %}</td>
   </tr>
   {% else %}
-  <tr><td colspan="7" class="empty">No setup key found.</td></tr>
+  <tr><td colspan="8" class="empty">No setup key found.</td></tr>
   {% endfor %}
   </tbody>
 </table>
+</form>
 {% endblock %}

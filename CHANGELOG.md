@@ -49,7 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and ephemeral flag, edit auto-groups, revoke (`PUT /setup-keys/{id}` from a
   fresh GET), delete revoked keys. The new key's value appears once, in the
   create response page only; it is not logged, cached, or put in a URL.
-  Hidden for roles that may not manage setup keys.
+  Hidden for roles that may not manage setup keys. Bulk *Revoke selected* /
+  *Delete selected* from the list (each key re-read and written on its own;
+  delete skips keys that are not revoked).
 
 ### Changed
 - `export_objects.py`: endpoint list and dump helpers are public

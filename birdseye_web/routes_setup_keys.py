@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Annotated
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from fastapi import APIRouter, Depends, Path, Request
 from fastapi.responses import RedirectResponse, Response
@@ -85,6 +85,11 @@ async def key_list(
             "all_states": STATES,
             "counts": {st: sum(1 for v in states.values() if v == st) for st in STATES},
             "can_create": may_manage(s, "create"),
+            "can_bulk": may_manage(s, "update") or may_manage(s, "delete"),
+            "bulk": {
+                k: _int(request.query_params.get(k), 0)
+                for k in ("revoked", "deleted", "skipped", "failed")
+            },
         },
     )
 
@@ -165,6 +170,55 @@ async def key_create(
             "name": body["name"],
             "secret": str(created.get("key") or ""),
         },
+    )
+
+
+BULK_ACTIONS = ("revoke", "delete")
+
+
+async def _bulk_one(api: NetBirdAPI, s: Session, kid: str, action: str) -> str:
+    """Revoke or delete one key from a fresh GET; returns the outcome counter."""
+    path = f"setup-keys/{quote(kid, safe='')}"
+    fresh = await api.get(path)
+    if action == "revoke":
+        if fresh.get("revoked"):
+            return "skipped"
+        before = setup_key_update_payload(fresh)
+        body = setup_key_update_payload(fresh, revoked=True)
+        await api.put(path, body)
+        log_change(s, f"update setup key {kid}", before, body)
+        return "revoked"
+    if not fresh.get("revoked"):
+        return "skipped"  # only revoked keys are deleted
+    await api.delete(path)
+    log_change(s, f"delete setup key {kid}", fresh.get("name"), None)
+    return "deleted"
+
+
+@router.post("/bulk")
+async def key_bulk(
+    request: Request,
+    s: Session = Depends(csrf_protect),
+    api: NetBirdAPI = Depends(user_api),
+    snap: Snapshot = Depends(snapshot),
+) -> Response:
+    """Revoke or delete the selected keys, one API call each; a failure on
+    one key does not stop the others."""
+    form = await request.form()
+    action = str(form.get("action", ""))
+    if action not in BULK_ACTIONS:
+        return Response("Unknown action", status_code=400)
+    counts = {"revoked": 0, "deleted": 0, "skipped": 0, "failed": 0}
+    for kid in dict.fromkeys(str(k) for k in form.getlist("keys")):
+        if kid not in snap.setup_keys:
+            continue
+        try:
+            counts[await _bulk_one(api, s, kid, action)] += 1
+        except (PayloadError, NetBirdError):
+            counts["failed"] += 1
+    ctx(request).cache.invalidate()
+    return RedirectResponse(
+        "/setup-keys?" + urlencode({k: v for k, v in counts.items() if v}), status_code=303
     )
 
 

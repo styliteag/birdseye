@@ -187,4 +187,27 @@
     if (!ev.persisted) return;
     document.querySelectorAll(".secret").forEach(function (el) { el.textContent = "(hidden – create a new key if you did not copy it)"; });
   });
+  // --- bulk selection: "select all" header box and counter -------------------------
+  function refreshBulk(form) {
+    var boxes = form.querySelectorAll("input[name=keys]");
+    var n = 0;
+    boxes.forEach(function (b) { if (b.checked) n++; });
+    var count = form.querySelector("[data-bulk-count]");
+    if (count) count.textContent = n + " selected";
+    var all = form.querySelector("[data-select-all]");
+    if (all) all.checked = boxes.length > 0 && n === boxes.length;
+    form.querySelectorAll("button[name=action]").forEach(function (b) { b.disabled = n === 0; });
+  }
+  document.addEventListener("change", function (ev) {
+    var form = ev.target.closest("#bulk-form");
+    if (!form) return;
+    if (ev.target.matches("[data-select-all]")) {
+      form.querySelectorAll("input[name=keys]").forEach(function (b) { b.checked = ev.target.checked; });
+    }
+    refreshBulk(form);
+  });
+  document.addEventListener("DOMContentLoaded", function () {
+    var form = document.getElementById("bulk-form");
+    if (form) refreshBulk(form);
+  });
 })();
