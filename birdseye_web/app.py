@@ -19,6 +19,7 @@ from birdseye_web import (
     routes_history,
     routes_jobs,
     routes_matrix,
+    routes_myaccess,
     routes_networks,
     routes_peers,
     routes_policies,
@@ -87,6 +88,7 @@ def create_app(
     app.include_router(routes_audit.router)
     app.include_router(routes_history.router)
     app.include_router(routes_versions.router)
+    app.include_router(routes_myaccess.router)
     app.include_router(routes_policies.router)
     app.include_router(routes_anomalies.router)
     app.include_router(routes_jobs.router)

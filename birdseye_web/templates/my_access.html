@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}My access{% endblock %}
+{% block content %}
+<h1>My access <span class="count">{{ devices|length }} device{{ '' if devices|length == 1 else 's' }}</span></h1>
+{% if not devices %}
+<div class="card">
+  <p>No devices of yours are visible.</p>
+  {% if session.limited %}
+  <p class="muted small">Either you have not connected a device with your NetBird account yet, or the account
+    does not let regular users see their own devices. An admin can change that in the NetBird dashboard's
+    settings (the option that restricts what regular users may view; API field
+    <code>regular_users_view_blocked</code>).</p>
+  {% endif %}
+</div>
+{% endif %}
+{% for d in devices %}
+<section class="card device-card">
+  <h3><span class="dot {{ 'on' if d.peer.connected else 'off' }}"></span> {% if session.limited %}{{ d.peer.name }}{% else %}<a href="/peers/{{ d.peer.id }}">{{ d.peer.name }}</a>{% endif %}
+    <span class="muted small"><code>{{ d.peer.ip }}</code>{% if d.peer.os %} · {{ d.peer.os }}{% endif %} · {% if d.peer.connected %}online{% else %}last seen {{ d.peer.last_seen|ago or 'never' }}{% endif %}</span></h3>
+  {% if d.access is not none %}
+    <h4>Can access <span class="count">{{ d.access.outgoing|length }}</span></h4>
+    {% for c in d.access.outgoing %}
+      <div class="reach-line"><a href="{{ c.ref|ref_link }}">{% if c.ref.kind == 'resource' %}▣ {% endif %}{{ snap.endpoint_name(c.ref) }}</a>
+        {% for sv in c.services %}<span class="pill">{{ sv }}</span>{% endfor %}</div>
+    {% else %}<p class="muted small">nothing</p>{% endfor %}
+  {% elif d.peers is none %}
+    <p class="muted small">NetBird does not tell your role what this device can reach.</p>
+  {% else %}
+    <h4>Can connect to <span class="count">{{ d.peers|length }} device{{ '' if d.peers|length == 1 else 's' }}</span></h4>
+    {% for p in d.peers %}
+      <div class="reach-line"><span><span class="dot {{ 'on' if p.connected else 'off' }}"></span> {{ p.name }}</span> <code class="small">{{ p.ip }}</code></div>
+    {% else %}<p class="muted small">no other device</p>{% endfor %}
+    <p class="muted small">Devices only; which ports and network resources are allowed is visible to admins and auditors.</p>
+  {% endif %}
+</section>
+{% endfor %}
+{% endblock %}

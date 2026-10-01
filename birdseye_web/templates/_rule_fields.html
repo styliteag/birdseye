@@ -1,7 +1,7 @@
 {% set pre = 'rules-' ~ idx ~ '-' %}
 <fieldset class="rule" data-rule>
   <legend>Rule {{ idx + 1 }}
-    <button type="button" class="link danger small" data-remove-rule title="Remove rule">remove</button>
+    {% if can_write is not defined or can_write %}<button type="button" class="link danger small" data-remove-rule title="Remove rule">remove</button>{% endif %}
   </legend>
   <input type="hidden" name="rule_idx" value="{{ idx }}">
   <input type="hidden" name="{{ pre }}id" value="{{ r.id }}">

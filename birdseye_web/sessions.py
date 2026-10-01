@@ -45,6 +45,12 @@ class Session:
     def is_admin(self) -> bool:
         return self.role in ("owner", "admin")
 
+    @property
+    def limited(self) -> bool:
+        """NetBird shows this role only its own devices (role `user`): no
+        groups or policies, so the account-wide views would be empty."""
+        return not (self.is_admin or self.can("policies", "read") or self.can("groups", "read"))
+
     def can(self, module: str, op: str) -> bool:
         """UI hint only; NetBird enforces the real permission on every call."""
         return bool(self.permissions.get("modules", {}).get(module, {}).get(op, False))

@@ -4,11 +4,13 @@
   <tr class="{{ 'off' if not (p.enabled and r.enabled) }}">
     {% if loop.first %}
     <td rowspan="{{ p.rules|length }}">
+      {% if session.can('policies', 'update') or session.is_admin %}
       <form method="post" action="/policies/{{ p.id }}/toggle">
         <input type="hidden" name="csrf" value="{{ session.csrf }}">
         <button class="switch {{ 'on' if p.enabled }}" title="{{ 'enabled – click to disable' if p.enabled else 'disabled – click to enable' }}"
                 data-confirm="{{ 'Disable' if p.enabled else 'Enable' }} policy “{{ p.name }}”?"><span></span></button>
       </form>
+      {% else %}<span class="switch {{ 'on' if p.enabled }}" title="{{ 'enabled' if p.enabled else 'disabled' }}"><span></span></span>{% endif %}
     </td>
     <td rowspan="{{ p.rules|length }}"><a href="/policies/{{ p.id }}">{{ p.name }}</a>
       {% if p.description %}<div class="muted small">{{ p.description|truncate(90) }}</div>{% endif %}</td>

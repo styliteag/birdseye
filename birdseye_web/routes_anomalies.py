@@ -21,6 +21,13 @@ async def anomalies_page(
     s: Session = Depends(current_session),
     snap: Snapshot = Depends(snapshot),
 ) -> Response:
+    if s.limited:
+        # NetBird hides most of the account from this role: findings would be wrong
+        return TEMPLATES.TemplateResponse(
+            request,
+            "anomalies.html",
+            {"session": s, "sections": [], "counts": {}, "level": "info", "limited": True},
+        )
     level = request.query_params.get("min", "info")
     limit = SEVERITY_ORDER.get(level, 2)
     settings = ctx(request).settings

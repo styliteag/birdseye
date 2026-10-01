@@ -11,10 +11,13 @@
 </head>
 <body {% if session %}hx-headers='{"X-CSRF-Token": "{{ session.csrf }}"}'{% endif %}>
   <header class="top">
-    <a class="brand" href="/matrix"><span class="logo">◉</span> birdseye</a>
+    <a class="brand" href="{{ '/my-access' if session and session.limited else '/matrix' }}"><span class="logo">◉</span> birdseye</a>
     {% if session %}
     <nav>
       {% set p = request.url.path %}
+      {% if session.limited %}
+      <a href="/my-access" {% if p.startswith('/my-access') %}aria-current="page"{% endif %}>My access</a>
+      {% else %}
       <a href="/matrix" {% if p.startswith('/matrix') %}aria-current="page"{% endif %}>Matrix</a>
       <a href="/reach" {% if p.startswith('/reach') %}aria-current="page"{% endif %}>Reachability</a>
       <a href="/groups" {% if p.startswith('/groups') %}aria-current="page"{% endif %}>Groups</a>
@@ -25,9 +28,10 @@
       <a href="/policies" {% if p.startswith('/policies') %}aria-current="page"{% endif %}>Policies</a>
       {% if session.can('setup_keys', 'read') or session.is_admin %}<a href="/setup-keys" {% if p.startswith('/setup-keys') %}aria-current="page"{% endif %}>Setup keys</a>{% endif %}
       <a href="/anomalies" {% if p.startswith('/anomalies') %}aria-current="page"{% endif %}>Anomalies</a>
-      <a href="/audit" {% if p.startswith('/audit') %}aria-current="page"{% endif %}>Audit</a>
+      {% if session.can('events', 'read') or session.is_admin %}<a href="/audit" {% if p.startswith('/audit') %}aria-current="page"{% endif %}>Audit</a>{% endif %}
       {% if session.is_admin %}<a href="/history" {% if p.startswith('/history') %}aria-current="page"{% endif %}>History</a>{% endif %}
       <a href="/jobs" {% if p.startswith('/jobs') %}aria-current="page"{% endif %}>Jobs</a>
+      {% endif %}
     </nav>
     <div class="who">
       <span title="{{ session.user_id }}">{{ session.user_name }}</span>
@@ -37,6 +41,7 @@
     {% endif %}
   </header>
   <main class="{% block main_class %}{% endblock %}">
+    {% if session and session.limited %}<div class="flash info">Your NetBird role (<strong>{{ session.role }}</strong>) only lets you see your own devices. Groups, policies and the access matrix are visible to admins and auditors.</div>{% endif %}
     {% if request.query_params.get('saved') %}<div class="flash ok">Saved.</div>{% endif %}
     {% if request.query_params.get('deleted') %}<div class="flash ok">Deleted.</div>{% endif %}
     {% block content %}{% endblock %}

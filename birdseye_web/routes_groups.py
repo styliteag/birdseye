@@ -102,6 +102,7 @@ def _editor(request, s, snap, group=None, error="", name="", selected=None, stat
             "session": s,
             "snap": snap,
             "group": group,
+            "can_write": s.can("groups", "update" if group else "create") or s.is_admin,
             "name": name or (group.name if group else ""),
             "peers": peers,
             "selected": selected,

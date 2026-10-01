@@ -117,6 +117,8 @@ async def matrix_page(
     s: Session = Depends(current_session),
     snap: Snapshot = Depends(snapshot),
 ) -> Response:
+    if s.limited:  # no groups or policies to show: their own devices instead
+        return RedirectResponse("/my-access", status_code=303)
     view, flt = parse_filter(request)
     m = build(snap, view, flt)
     ctx = {

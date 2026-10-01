@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Anomalies{% endblock %}
 {% block content %}
+{% if limited %}
+<h1>Anomalies</h1>
+<div class="card"><p class="muted">Anomalies need the whole account – groups, policies and every device. Your role does not see them, so no findings are shown.</p></div>
+{% else %}
 <div class="page-head">
   <h1>Anomalies</h1>
   <nav class="sev-filter">
@@ -38,4 +42,5 @@
 {% else %}
 <div class="card"><p>✔ Nothing found at this level.</p></div>
 {% endfor %}
+{% endif %}
 {% endblock %}

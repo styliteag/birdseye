@@ -26,11 +26,21 @@ Screenshots of every page: **[screenshots.md](screenshots.md)**.
 | **Setup keys** | List with state badges (valid, expired, revoked, exhausted), usage, expiry, last use and auto-assigned groups. Create a key (name, type, expiry in days, usage limit, auto-groups, ephemeral): the key value is shown **once**, on the page right after creation, and is never logged or stored by birdseye. Edit auto-groups, revoke, delete revoked keys – one at a time or by selecting several in the list (*Revoke selected*, *Delete selected*; delete skips keys that are not revoked). Only shown to roles that may manage setup keys. |
 | **Audit** | NetBird's audit log (`/api/events/audit`, read live, not cached): newest first, 100 per page, filter by who, activity or category, target, date range and free text. IDs are shown as names; deleted objects by the name NetBird recorded. Each target links to its editor, and every editor (group, policy, user, peer, setup key, network, resource) has a *History* link to its own entries. Changes made through birdseye-web since its last restart are marked *birdseye* (same user, within 30 s, same object). Needs a role that may read events. |
 | **History** | Owners and admins: compare two configuration snapshots (policies, groups, posture checks, networks, users, setup keys, peers, routes, DNS, account settings) – added, removed and changed objects, each change as one readable line (e.g. `rules › web › ports: + 8443`, IDs shown as names); a notice says when a change is newer than the newest snapshot and the page reloads once the next snapshot is there; runtime state such as online or last seen is ignored. Per object: every version with its changes, linked from the audit log. Restore one policy or group to an older version, with the access preview first; a deleted one is created again; a policy whose groups or posture checks no longer exist is not restored. Optional, see [Config history](#config-history-optional). |
+| **My access** | Your own devices and what each one can reach. Admins and auditors see the services from the policies; regular users (who cannot read policies) see the devices NetBird lets each of their devices connect to. |
 | **Jobs** | Status of the `birdseye` container's cron jobs and audit-event forwarder: last run, result, duration, history, log tail. Owners and admins can start selected jobs (by default `cleanup` and `maintenance`, both also as dry run). Optional, see [Jobs page](#jobs-page-optional). |
 | **Anomalies** | Configuration smells: rules that bypass groups, devices whose groups drifted from their user's defaults (linked to the user editor, where they can be fixed), peers inside resource groups, empty or missing groups in policies, resources nobody routes or reaches, unused groups, disabled policies. Housekeeping: peers with an expired login, waiting for approval, offline longer than `WEB_STALE_PEER_DAYS` or on an outdated client; setup keys that never expire, are reusable without limit, were never used, or expired without being revoked; users without a device; posture checks no policy uses. Each finding links to the editor that fixes it where there is one. `WEB_ANOMALY_IGNORE` hides findings about matching groups and is also applied to the counters. |
 
 Writes go to NetBird **immediately** (after the confirm/preview step) and show
 up in NetBird's audit log under the signed-in user's name.
+
+### Roles
+
+What you see depends on your NetBird role, because every call uses your own token:
+
+- **Owner / admin**: everything, including History.
+- **Auditor**: reads everything (matrix, editors, audit log, setup keys), writes nothing – editors are shown read-only, without Save/Delete or preview.
+- **Network admin and other roles**: what NetBird grants them; buttons appear only for what they may change.
+- **User**: NetBird shows regular users no groups or policies, so they get only **My access** (with a note explaining why). With NetBird's default setting *regular users may not view* (`regular_users_view_blocked`), they do not even see their own devices; an admin can lift that in the NetBird dashboard's settings. Anomalies are not shown to them: they would be computed from partial data.
 
 ## How sign-in works (and why there is no API key)
 

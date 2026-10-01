@@ -8,9 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- birdseye-web **My access** (`/my-access`): your own devices and what each
+  can reach – with services for admins and auditors, via NetBird's
+  `accessible-peers` for regular users.
 - Screenshots: gallery page `docs/screenshots.md` (light/dark follow the
   GitHub theme), a matrix screenshot and an updated feature list in the
   README, and the local demo stack in `demo/` that produces them.
+
+### Changed
+- birdseye-web for non-admin roles: auditors get read-only group and policy
+  editors (no Save/Delete, no policy toggle, no preview that cannot work);
+  regular users land on My access with a note that their role sees only
+  their own devices, the account-wide pages leave the menu, and Anomalies
+  no longer reports findings from data their role cannot see.
 
 ### Fixed
 - An `http://` `NB_URL` (local test setups) was silently turned into HTTPS

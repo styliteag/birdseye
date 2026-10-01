@@ -75,5 +75,6 @@ Playwright's Chromium: `uv run --with playwright python -m playwright install ch
 | `login_users.py` | device-code login of user-owned peers |
 | `changes.py` | two rounds of config changes for History/Audit |
 | `shoot.py` | screenshots |
+| `roles_check.py` | walk every page as non-admin users (ben = user, frank = auditor); `--view-unblocked` |
 | `publish_docs.py` | curated, compressed screenshots for the docs |
 | `secrets.env`, `web.env`, `peers.yml`, `data/` | generated, wiped by down.sh |

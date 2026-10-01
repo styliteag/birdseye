@@ -5,11 +5,13 @@
 <h1>{{ policy.name or 'New policy' }}</h1>
 {% if pid %}<p class="muted small"><a href="/audit?target={{ pid }}">History</a></p>{% endif %}
 {% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+{% if not can_write %}<div class="flash info">Your NetBird role can view this policy, but changes are read-only.</div>{% endif %}
 
 <div class="split">
   <form id="policy-form" class="card" method="post" action="{{ '/policies/' ~ pid if pid else '/policies' }}">
     <input type="hidden" name="csrf" value="{{ session.csrf }}">
     <input type="hidden" name="pid" value="{{ pid }}">
+    <fieldset class="plain" {% if not can_write %}disabled{% endif %}>
     <div class="grid2">
       <label class="block">Name <input name="name" value="{{ policy.name }}" required></label>
       <label class="check big"><input type="checkbox" name="enabled" {% if policy.enabled %}checked{% endif %}> Enabled</label>
@@ -31,6 +33,8 @@
         {% include "_rule_fields.html" %}
       {% endfor %}
     </div>
+    </fieldset>
+    {% if can_write %}
     <button type="button" class="secondary" data-add-rule>+ Add rule</button>
 
     <div class="actions">
@@ -40,8 +44,10 @@
               data-confirm="Delete policy “{{ policy.name }}”? The access shown on the right will be lost.">Delete</button>
       {% endif %}
     </div>
+    {% endif %}
   </form>
 
+  {% if can_write %}
   <div class="side">
     <section class="card sticky">
       <h3>Effect</h3>
@@ -57,5 +63,6 @@
       {% endif %}
     </section>
   </div>
+  {% endif %}
 </div>
 {% endblock %}

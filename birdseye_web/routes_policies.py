@@ -203,6 +203,7 @@ def _editor(request, s, snap, policy, error="", status=200, pid=""):
             "snap": snap,
             "policy": policy,
             "pid": pid,
+            "can_write": s.can("policies", "update" if pid else "create") or s.is_admin,
             "error": error,
             "protocols": PROTOCOLS,
             "groups": sorted(snap.groups.values(), key=lambda g: g.name.lower()),

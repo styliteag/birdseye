@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% block title %}{{ group.name if group else 'New group' }}{% endblock %}
 {% block content %}
-{% set readonly = group and group.is_all %}
+{% set readonly = (group and group.is_all) or not can_write %}
 <p class="crumbs"><a href="/groups">Groups</a> /</p>
 <h1>{{ group.name if group else 'New group' }}</h1>
 {% if group %}<p class="muted small"><a href="/audit?target={{ group.id }}">History</a></p>{% endif %}
 {% if error %}<div class="flash err">{{ error }}</div>{% endif %}
-{% if readonly %}<div class="flash info">“All” is maintained by NetBird and cannot be edited.</div>{% endif %}
+{% if group and group.is_all %}<div class="flash info">“All” is maintained by NetBird and cannot be edited.</div>
+{% elif not can_write %}<div class="flash info">Your NetBird role can view this group, but changes are read-only.</div>{% endif %}
 
 <div class="split">
   <form id="group-form" class="card" method="post" action="{{ '/groups/' ~ group.id if group else '/groups' }}">
