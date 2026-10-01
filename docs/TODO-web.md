@@ -38,19 +38,19 @@ Pure logic in its own tested module; routes only do HTTP. TDD.
 
 ## 3. Networks, resources and routers editor
 
-- [ ] `routes_networks.py`: list networks with resources and routers
-- [ ] Network create/rename/delete (`/networks`)
-- [ ] Resource create/edit/delete (`/networks/{id}/resources`): address/domain,
+- [x] `routes_networks.py`: list networks with resources and routers
+- [x] Network create/rename/delete (`/networks`)
+- [x] Resource create/edit/delete (`/networks/{id}/resources`): address/domain,
       groups, enabled; preview of gained/lost access
-- [ ] Router create/edit/delete (`/networks/{id}/routers`): peer or peer group,
+- [x] Router create/edit/delete (`/networks/{id}/routers`): peer or peer group,
       metric, masquerade, enabled
-- [ ] Payload builders in `payloads.py` (raw dicts, IDs not objects), tested
-- [ ] Anomalies "resource nobody routes" / "resource no policy reaches" link
+- [x] Payload builders in `payloads.py` (raw dicts, IDs not objects), tested
+- [x] Anomalies "resource nobody routes" / "resource no policy reaches" link
       to the new editors
-- [ ] Group `PUT` paths that touch resource groups keep `resources` (regression test)
-- [ ] Contract: `GET /resources/{rid}` redirects to the resource editor
+- [x] Group `PUT` paths that touch resource groups keep `resources` (regression test)
+- [x] Contract: `GET /resources/{rid}` redirects to the resource editor
       (`ui.obj_link("r:<id>")` already links there)
-- [ ] Nav entry, docs, CHANGELOG
+- [x] Nav entry, docs, CHANGELOG
 
 ## 4. More anomalies
 

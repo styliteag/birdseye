@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Networks{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Networks <span class="count">{{ networks|length }}</span></h1>
+  {% if session.can('networks', 'create') or session.is_admin %}<a class="button primary" href="/networks/new">+ New network</a>{% endif %}
+</div>
+<p class="muted small">Resources are reachable through a network's routing peers. Policies give access to a resource directly or through its groups.</p>
+{% for n in networks %}
+<section class="card net-card">
+  <h3><a href="/networks/{{ n.id }}">{{ n.name }}</a>{% if n.description %} <span class="muted small">{{ n.description }}</span>{% endif %}</h3>
+  <table class="list">
+    <thead><tr><th>Resource</th><th>Address</th><th>Groups</th><th></th></tr></thead>
+    <tbody>
+    {% for r in resources[n.id] %}
+      <tr>
+        <td><a href="/networks/{{ n.id }}/resources/{{ r.id }}">▣ {{ r.name }}</a></td>
+        <td><code>{{ r.address }}</code></td>
+        <td>{% for gid in r.group_ids|sort %}<a class="pill" href="/groups/{{ gid }}">{{ snap.groups[gid].name if gid in snap.groups else gid }}</a> {% endfor %}</td>
+        <td>{% if not r.enabled %}<span class="pill">off</span>{% endif %}</td>
+      </tr>
+    {% else %}<tr><td colspan="4" class="empty">No resources.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  <p class="small">Routers:
+    {% for rt in n.routers %}
+      <a href="/networks/{{ n.id }}/routers/{{ rt.id }}" class="pill {{ '' if rt.enabled else 'off' }}">{% if rt.peer %}• {{ snap.peers[rt.peer].name if rt.peer in snap.peers else rt.peer }}{% else %}{% for g in rt.peer_groups %}{{ snap.groups[g].name if g in snap.groups else g }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}{% if not rt.enabled %} (off){% endif %}</a>
+    {% else %}<span class="pill sev-warning">none – resources are not routed</span>{% endfor %}
+  </p>
+</section>
+{% else %}
+<div class="card"><p class="muted">No networks.</p></div>
+{% endfor %}
+{% endblock %}

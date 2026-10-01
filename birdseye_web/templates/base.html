@@ -20,6 +20,7 @@
       <a href="/groups" {% if p.startswith('/groups') %}aria-current="page"{% endif %}>Groups</a>
       <a href="/peers" {% if p.startswith('/peers') %}aria-current="page"{% endif %}>Peers</a>
       <a href="/users" {% if p.startswith('/users') %}aria-current="page"{% endif %}>Users</a>
+      <a href="/networks" {% if p.startswith('/networks') %}aria-current="page"{% endif %}>Networks</a>
       <a href="/policies" {% if p.startswith('/policies') %}aria-current="page"{% endif %}>Policies</a>
       {% if session.can('setup_keys', 'read') or session.is_admin %}<a href="/setup-keys" {% if p.startswith('/setup-keys') %}aria-current="page"{% endif %}>Setup keys</a>{% endif %}
       <a href="/anomalies" {% if p.startswith('/anomalies') %}aria-current="page"{% endif %}>Anomalies</a>

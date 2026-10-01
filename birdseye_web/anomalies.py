@@ -29,6 +29,7 @@ class Finding:
     link: str = ""  # page to fix it
     group_id: str = ""  # the group the finding is about, if any
     peer_id: str = ""  # the peer the finding is about, if any (links its editor)
+    resource_id: str = ""  # likewise for a network resource
 
 
 @dataclass(frozen=True)
@@ -183,7 +184,12 @@ def _no_router(snap: Snapshot) -> Iterator[Finding]:
         net = snap.networks.get(res.network_id)
         if res.enabled and net is not None and not (net.router_peer_ids or net.router_group_ids):
             yield Finding(
-                "no-router", "warning", f"{res.name} ({res.address})", detail=f"network {net.name}"
+                "no-router",
+                "warning",
+                f"{res.name} ({res.address})",
+                detail=f"network {net.name}",
+                link=f"/networks/{net.id}/routers/new",
+                resource_id=res.id,
             )
 
 
@@ -226,6 +232,7 @@ def _unreachable_resources(snap: Snapshot) -> Iterator[Finding]:
                 "warning",
                 f"{res.name} ({res.address})",
                 link="/policies/new?" + urlencode({"dst_resource": res.id}),
+                resource_id=res.id,
             )
 
 

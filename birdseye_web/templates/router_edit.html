@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Router' if rt else 'New router' }}{% endblock %}
+{% block content %}
+{% set base = '/networks/' ~ net.id ~ '/routers' %}
+<p class="crumbs"><a href="/networks">Networks</a> / <a href="/networks/{{ net.id }}">{{ net.name }}</a> /</p>
+<h1>{{ 'Router' if rt else 'New router' }}</h1>
+<p class="muted small">A routing peer forwards traffic from other peers to this network's resources.</p>
+{% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+<form class="card narrow-form" method="post" action="{{ base ~ '/' ~ rt.id if rt else base }}">
+  <input type="hidden" name="csrf" value="{{ session.csrf }}">
+  <p>
+    <label class="check"><input type="radio" name="mode" value="peer" {% if v.mode == 'peer' %}checked{% endif %}> One peer</label>
+    <label class="check"><input type="radio" name="mode" value="group" {% if v.mode == 'group' %}checked{% endif %}> Peer group(s) (high availability)</label>
+  </p>
+  <label class="block">Peer
+    <select name="peer"><option value="">–</option>
+      {% for p in peers %}<option value="{{ p.id }}" {% if p.id == v.peer %}selected{% endif %}>{{ p.name }} ({{ p.ip }})</option>{% endfor %}
+    </select>
+  </label>
+  <fieldset class="picklist" data-picklist>
+    <legend>Peer groups <span class="muted" data-count></span></legend>
+    <div class="picklist-tools"><input type="search" placeholder="Filter groups…" data-filter></div>
+    <div class="picklist-items">
+      {% for g in groups %}
+      <label class="pick" data-text="{{ g.name|lower }}">
+        <input type="checkbox" name="peer_groups" value="{{ g.id }}" {% if g.id in v.peer_groups %}checked{% endif %}>
+        <span class="name">{{ g.name }}</span> <span class="muted small">{{ g.peer_ids|length }} peers</span>
+      </label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  <label class="block">Metric (1–9999, lower wins) <input type="number" name="metric" min="1" max="9999" value="{{ v.metric }}"></label>
+  <label class="check"><input type="checkbox" name="masquerade" value="1" {% if v.masquerade %}checked{% endif %}> Masquerade (NAT traffic behind the router)</label><br>
+  <label class="check"><input type="checkbox" name="enabled" value="1" {% if v.enabled %}checked{% endif %}> Enabled</label>
+  {% if can %}
+  <div class="actions">
+    <button class="primary">{{ 'Save' if rt else 'Create' }}</button>
+    {% if rt %}<button class="danger" formaction="{{ base }}/{{ rt.id }}/delete" data-confirm="Delete this router? Resources may become unreachable.">Delete</button>{% endif %}
+  </div>
+  {% endif %}
+</form>
+{% endblock %}

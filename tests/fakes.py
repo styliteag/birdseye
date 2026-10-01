@@ -83,7 +83,7 @@ class FakeAPI:
     async def get(self, path: str) -> Any:
         if path in self.nb.data:
             return copy.deepcopy(self.nb.data[path])
-        kind, _, oid = path.partition("/")
+        kind, _, oid = path.rpartition("/")
         for item in self.nb.data.get(kind, []):
             if item["id"] == oid:
                 return copy.deepcopy(item)

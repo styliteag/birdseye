@@ -7,7 +7,7 @@ from dataclasses import dataclass, replace
 from typing import Any
 
 from birdseye_web.access import edges, grants
-from birdseye_web.models import Ref, Snapshot, parse_policy
+from birdseye_web.models import Ref, Resource, Snapshot, parse_policy
 
 
 @dataclass(frozen=True, order=True)
@@ -170,14 +170,60 @@ def without_peer(snap: Snapshot, peer_id: str) -> Snapshot:
     def drop(ref: Ref | None) -> Ref | None:
         return None if ref == gone else ref
 
-    policies = {
+    return replace(snap, peers=peers, groups=groups, policies=_map_refs(snap, drop))
+
+
+def _map_refs(snap: Snapshot, fn) -> dict:
+    """Policies with every rule's direct source/destination ref passed through `fn`."""
+    return {
         pid: replace(
             pol,
             rules=tuple(
-                replace(r, source_ref=drop(r.source_ref), destination_ref=drop(r.destination_ref))
+                replace(r, source_ref=fn(r.source_ref), destination_ref=fn(r.destination_ref))
                 for r in pol.rules
             ),
         )
         for pid, pol in snap.policies.items()
     }
-    return replace(snap, peers=peers, groups=groups, policies=policies)
+
+
+def with_resource(snap: Snapshot, resource: Resource) -> Snapshot:
+    """Snapshot copy with a resource added or replaced. Group membership is
+    taken from the resource alone, as NetBird does when the resource is saved."""
+    groups = {
+        gid: replace(
+            g,
+            resource_ids=(g.resource_ids | {resource.id})
+            if gid in resource.group_ids
+            else (g.resource_ids - {resource.id}),
+        )
+        for gid, g in snap.groups.items()
+    }
+    return replace(snap, resources={**snap.resources, resource.id: resource}, groups=groups)
+
+
+def without_resource(snap: Snapshot, resource_id: str) -> Snapshot:
+    """Snapshot copy after a resource is deleted (also from direct rule targets)."""
+    gone = Ref("resource", resource_id)
+
+    def drop(ref: Ref | None) -> Ref | None:
+        return None if ref == gone else ref
+
+    return replace(
+        snap,
+        resources={k: v for k, v in snap.resources.items() if k != resource_id},
+        groups={
+            gid: replace(g, resource_ids=g.resource_ids - {resource_id})
+            for gid, g in snap.groups.items()
+        },
+        policies=_map_refs(snap, drop),
+    )
+
+
+def without_network(snap: Snapshot, network_id: str) -> Snapshot:
+    """Snapshot copy after a network and all its resources are deleted."""
+    after = snap
+    for rid, res in snap.resources.items():
+        if res.network_id == network_id:
+            after = without_resource(after, rid)
+    return replace(after, networks={k: v for k, v in after.networks.items() if k != network_id})

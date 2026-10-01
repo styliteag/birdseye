@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   access, and the peer's effective access in and out. Peers link to their
   editor from the matrix, reachability, the cell popover, the user editor and
   the anomalies page.
+- birdseye-web **networks editor** (`/networks`): networks with their
+  resources and routers; create, rename and delete networks
+  (`/networks`), resources (`/networks/{id}/resources`, with access preview
+  and lost-access preview on delete) and routers (`/networks/{id}/routers`:
+  peer or peer groups, metric, masquerade, enabled). `/resources/{id}`
+  links to a resource from anywhere. Anomalies “Resource without an active
+  router” and “Resource no policy reaches” link to the router and resource
+  editors.
 - birdseye-web **setup keys page** (`/setup-keys`): state badges (valid,
   expired, revoked, exhausted), create with expiry, usage limit, auto-groups
   and ephemeral flag, edit auto-groups, revoke (`PUT /setup-keys/{id}` from a

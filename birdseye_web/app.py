@@ -17,6 +17,7 @@ from birdseye_web import (
     routes_groups,
     routes_jobs,
     routes_matrix,
+    routes_networks,
     routes_peers,
     routes_policies,
     routes_quickedit,
@@ -79,6 +80,7 @@ def create_app(
     app.include_router(routes_users.router)
     app.include_router(routes_peers.router)
     app.include_router(routes_setup_keys.router)
+    app.include_router(routes_networks.router)
     app.include_router(routes_policies.router)
     app.include_router(routes_anomalies.router)
     app.include_router(routes_jobs.router)

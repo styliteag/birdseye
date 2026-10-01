@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}{{ net.name if net else 'New network' }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="/networks">Networks</a> /</p>
+<h1>{{ net.name if net else 'New network' }}</h1>
+{% if net %}<p class="muted small"><a href="/audit?target={{ net.id }}">History</a></p>{% endif %}
+{% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+<div class="split">
+  <form class="card" method="post" action="{{ '/networks/' ~ net.id if net else '/networks' }}">
+    <input type="hidden" name="csrf" value="{{ session.csrf }}">
+    <label class="block">Name <input name="name" value="{{ v.name }}" required {% if not can %}disabled{% endif %}></label>
+    <label class="block">Description <input name="description" value="{{ v.description }}" {% if not can %}disabled{% endif %}></label>
+    {% if can %}
+    <div class="actions">
+      <button class="primary">{{ 'Save' if net else 'Create' }}</button>
+      {% if net %}<button class="danger" formaction="/networks/{{ net.id }}/delete"
+        data-confirm="Delete network “{{ net.name }}” with all its resources and routers?">Delete</button>{% endif %}
+    </div>
+    {% endif %}
+  </form>
+  {% if net %}
+  <div class="side">
+    <section class="card">
+      <h3>Resources <span class="count">{{ resources|length }}</span></h3>
+      {% for r in resources %}<div class="reach-line"><a href="/networks/{{ net.id }}/resources/{{ r.id }}">▣ {{ r.name }}</a> <code class="small">{{ r.address }}</code>{% if not r.enabled %} <span class="pill">off</span>{% endif %}</div>
+      {% else %}<p class="muted small">none</p>{% endfor %}
+      {% if can %}<p><a class="button small" href="/networks/{{ net.id }}/resources/new">+ Resource</a></p>{% endif %}
+      <h3>Routers <span class="count">{{ net.routers|length }}</span></h3>
+      {% for rt in net.routers %}<div class="reach-line"><a href="/networks/{{ net.id }}/routers/{{ rt.id }}">{% if rt.peer %}• {{ snap.peers[rt.peer].name if rt.peer in snap.peers else rt.peer }}{% else %}{% for g in rt.peer_groups %}{{ snap.groups[g].name if g in snap.groups else g }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}</a>
+        <span class="pill">metric {{ rt.metric }}</span>{% if rt.masquerade %}<span class="pill">masquerade</span>{% endif %}{% if not rt.enabled %}<span class="pill">off</span>{% endif %}</div>
+      {% else %}<p class="muted small">none – resources in this network are not routed</p>{% endfor %}
+      {% if can %}<p><a class="button small" href="/networks/{{ net.id }}/routers/new">+ Router</a></p>{% endif %}
+      {% if can %}
+      <details data-lazy>
+        <summary>What is lost if this network is deleted?</summary>
+        <div hx-post="/networks/{{ net.id }}/delete-preview" hx-trigger="lazy-open once"></div>
+      </details>
+      {% endif %}
+    </section>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

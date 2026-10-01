@@ -272,3 +272,44 @@ def setup_key_update_payload(
         "auto_groups": sorted(set(groups)),
         "revoked": was if revoked is None else revoked,
     }
+
+
+def network_payload(name: str, description: str = "") -> Json:
+    if not name.strip():
+        raise PayloadError("network name is required")
+    return {"name": name.strip(), "description": description.strip()}
+
+
+def resource_payload(
+    *, name: str, address: str, groups: Iterable[str], enabled: bool, description: str = ""
+) -> Json:
+    """Network resource body. NetBird derives the type (host/subnet/domain)
+    from the address; at least one group is required."""
+    addr = address.strip()
+    if not name.strip():
+        raise PayloadError("resource name is required")
+    if not addr or any(c.isspace() for c in addr):
+        raise PayloadError("address must be an IP, a CIDR subnet or a domain")
+    ids = sorted(set(g for g in groups if g))
+    if not ids:
+        raise PayloadError("a resource needs at least one group")
+    return {
+        "name": name.strip(),
+        "address": addr,
+        "groups": ids,
+        "enabled": enabled,
+        "description": description.strip(),
+    }
+
+
+def router_payload(
+    *, peer: str, peer_groups: Iterable[str], metric: int, masquerade: bool, enabled: bool
+) -> Json:
+    """Network router body: one peer or peer groups, never both."""
+    groups = sorted(set(g for g in peer_groups if g))
+    if bool(peer) == bool(groups):
+        raise PayloadError("choose either one routing peer or peer groups")
+    if not 1 <= metric <= 9999:
+        raise PayloadError("metric must be 1 to 9999")
+    body: Json = {"metric": metric, "masquerade": masquerade, "enabled": enabled}
+    return {"peer": peer, **body} if peer else {"peer_groups": groups, **body}

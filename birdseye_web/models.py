@@ -105,14 +105,30 @@ class Resource:
     network_id: str
     group_ids: frozenset[str]
     enabled: bool = True
+    description: str = ""
+
+
+@dataclass(frozen=True)
+class Router:
+    """Routing peer (or peer groups) of a network."""
+
+    id: str
+    peer: str = ""
+    peer_groups: tuple[str, ...] = ()
+    metric: int = 9999
+    masquerade: bool = False
+    enabled: bool = True
 
 
 @dataclass(frozen=True)
 class Network:
     id: str
     name: str
+    # from enabled routers only: what actually routes
     router_peer_ids: frozenset[str] = frozenset()
     router_group_ids: frozenset[str] = frozenset()
+    description: str = ""
+    routers: tuple[Router, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -336,6 +352,18 @@ def parse_resource(raw: Raw, network_id: str) -> Resource:
         network_id=network_id,
         group_ids=frozenset(_ids(raw.get("groups"))),
         enabled=bool(raw.get("enabled", True)),
+        description=str(raw.get("description") or ""),
+    )
+
+
+def parse_router(raw: Raw) -> Router:
+    return Router(
+        id=str(raw.get("id") or ""),
+        peer=str(raw.get("peer") or ""),
+        peer_groups=_ids(raw.get("peer_groups")),
+        metric=int(raw.get("metric") or 9999),
+        masquerade=bool(raw.get("masquerade", False)),
+        enabled=bool(raw.get("enabled", True)),
     )
 
 
@@ -356,12 +384,15 @@ def parse_setup_key(raw: Raw) -> SetupKey:
 
 
 def parse_network(raw: Raw, routers: Iterable[Raw]) -> Network:
-    active = [r for r in routers if r.get("enabled", True)]
+    parsed = tuple(parse_router(r) for r in routers)
+    active = [r for r in parsed if r.enabled]
     return Network(
         id=str(raw["id"]),
         name=str(raw.get("name") or ""),
-        router_peer_ids=frozenset(str(r["peer"]) for r in active if r.get("peer")),
-        router_group_ids=frozenset(g for r in active for g in _ids(r.get("peer_groups"))),
+        router_peer_ids=frozenset(r.peer for r in active if r.peer),
+        router_group_ids=frozenset(g for r in active for g in r.peer_groups),
+        description=str(raw.get("description") or ""),
+        routers=parsed,
     )
 
 

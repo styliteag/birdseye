@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ res.name if res else 'New resource' }}{% endblock %}
+{% block content %}
+{% set base = '/networks/' ~ net.id ~ '/resources' %}
+<p class="crumbs"><a href="/networks">Networks</a> / <a href="/networks/{{ net.id }}">{{ net.name }}</a> /</p>
+<h1>{{ '▣ ' ~ res.name if res else 'New resource' }}</h1>
+{% if res %}<p class="muted small">{{ res.type }} · <a href="/audit?target={{ res.id }}">History</a></p>{% endif %}
+{% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+<div class="split">
+  <form id="resource-form" class="card" method="post" action="{{ base ~ '/' ~ res.id if res else base }}">
+    <input type="hidden" name="csrf" value="{{ session.csrf }}">
+    <label class="block">Name <input name="name" value="{{ v.name }}" required></label>
+    <label class="block">Address (IP, CIDR subnet or domain, e.g. <code>*.example.com</code>) <input name="address" value="{{ v.address }}" required></label>
+    <label class="block">Description <input name="description" value="{{ v.description }}"></label>
+    <label class="check"><input type="checkbox" name="enabled" value="1" {% if v.enabled %}checked{% endif %}> Enabled</label>
+    <fieldset class="picklist" data-picklist>
+      <legend>Groups <span class="muted" data-count></span></legend>
+      <p class="muted small">At least one. Policies whose destination is one of these groups reach this resource.</p>
+      <div class="picklist-tools"><input type="search" placeholder="Filter groups…" data-filter>
+        <label class="check"><input type="checkbox" data-only-selected> selected only</label></div>
+      <div class="picklist-items">
+        {% for g in groups %}
+        <label class="pick" data-text="{{ g.name|lower }}">
+          <input type="checkbox" name="groups" value="{{ g.id }}" {% if g.id in v.groups %}checked{% endif %}>
+          <span class="name">{{ g.name }}</span>
+          <span class="muted small">{{ g.peer_ids|length }} peers · {{ g.resource_ids|length }} resources</span>
+        </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+    {% if can %}
+    <div class="actions">
+      <button class="primary">{{ 'Save' if res else 'Create' }}</button>
+      {% if res %}<button class="danger" formaction="{{ base }}/{{ res.id }}/delete"
+        data-confirm="Delete resource “{{ res.name }}”? The access shown under “What is lost” goes away.">Delete</button>{% endif %}
+    </div>
+    {% endif %}
+  </form>
+  <div class="side">
+    <section class="card">
+      <h3>Effect of this change</h3>
+      <div id="delta" hx-post="{{ base ~ '/' ~ res.id ~ '/preview' if res else base ~ '/preview' }}" hx-include="#resource-form"
+           hx-trigger="change from:#resource-form delay:200ms">
+        <p class="muted small">Change groups or the enabled switch to see who gains or loses access.</p>
+      </div>
+      {% if res and can %}
+      <details data-lazy>
+        <summary>What is lost if this resource is deleted?</summary>
+        <div hx-post="{{ base }}/{{ res.id }}/delete-preview" hx-trigger="lazy-open once"></div>
+      </details>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}
