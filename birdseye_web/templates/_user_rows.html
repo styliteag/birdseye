@@ -1,0 +1,11 @@
+{% for u in people %}
+<tr>
+  <td><a href="/users/{{ u.id }}">{{ u.label }}</a>{% if u.email and u.email != u.label %} <span class="muted small">{{ u.email }}</span>{% endif %}{% if u.is_blocked %} <span class="pill">blocked</span>{% endif %}</td>
+  <td>{{ u.role }}</td>
+  <td>{% for gid in u.auto_groups|sort %}<span class="pill">{{ snap.groups[gid].name if gid in snap.groups else gid }}</span> {% else %}<span class="muted">none</span>{% endfor %}</td>
+  <td class="num">{{ devices[u.id] }}</td>
+  <td class="num">{% if drift[u.id] %}<a href="/users/{{ u.id }}"><span class="pill sev-warning">{{ drift[u.id] }}</span></a>{% endif %}</td>
+</tr>
+{% else %}
+<tr><td colspan="5" class="empty">No user found.</td></tr>
+{% endfor %}

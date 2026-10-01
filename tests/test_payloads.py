@@ -143,3 +143,25 @@ def test_user_payload_keeps_role_and_block_state():
 def test_user_payload_requires_role():
     with pytest.raises(PayloadError, match="role"):
         user_payload({"id": "u"}, [])
+
+
+def test_user_payload_overrides_role_and_block():
+    fresh = {"id": "u", "role": "user", "is_blocked": False}
+    got = user_payload(fresh, [], role="auditor", is_blocked=True)
+    assert got == {"role": "auditor", "auto_groups": [], "is_blocked": True}
+
+
+@pytest.mark.parametrize("role", ["owner", "root", ""])
+def test_user_payload_rejects_unknown_or_owner_role(role):
+    with pytest.raises(PayloadError, match="role"):
+        user_payload({"id": "u", "role": "user"}, [], role=role)
+
+
+def test_user_payload_owner_may_stay_owner():
+    got = user_payload({"id": "u", "role": "owner"}, [], role="owner")
+    assert got["role"] == "owner"
+
+
+def test_user_payload_owner_cannot_be_demoted_here():
+    with pytest.raises(PayloadError, match="role"):
+        user_payload({"id": "u", "role": "owner"}, [], role="admin")

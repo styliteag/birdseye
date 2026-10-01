@@ -117,3 +117,29 @@ def with_user_auto_groups(
         with_group_members(snap, group_id, (group.peer_ids - leaves) | joins),
         users=users,
     )
+
+
+def with_user_groups(snap: Snapshot, user_id: str, auto_groups: Iterable[str]) -> Snapshot:
+    """Snapshot copy after one user's auto-groups become `auto_groups`.
+
+    Group by group, so propagation moves the user's peers exactly as
+    `with_user_auto_groups` does for the group editor.
+    """
+    old, new = snap.users[user_id].auto_groups, frozenset(auto_groups)
+    after = snap
+    for gid in sorted(old ^ new):
+        if gid not in snap.groups:
+            continue
+        add = (user_id,) if gid in new else ()
+        rem = () if gid in new else (user_id,)
+        after = with_user_auto_groups(after, gid, added=add, removed=rem)
+    user = replace(after.users[user_id], auto_groups=new)
+    return replace(after, users={**after.users, user_id: user})
+
+
+def with_memberships(snap: Snapshot, members: Mapping[str, Iterable[str]]) -> Snapshot:
+    """Snapshot copy with several groups' peer sets replaced."""
+    after = snap
+    for gid, peer_ids in members.items():
+        after = with_group_members(after, gid, peer_ids)
+    return after

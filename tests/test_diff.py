@@ -1,6 +1,12 @@
-from birdseye_web.diff import access_delta, with_policy, without_policy
+from birdseye_web.diff import (
+    access_delta,
+    with_memberships,
+    with_policy,
+    with_user_groups,
+    without_policy,
+)
 from birdseye_web.models import Ref
-from tests.factory import group, peer, policy, rule, snap
+from tests.factory import group, peer, policy, rule, snap, user
 
 
 def _base():
@@ -71,8 +77,6 @@ def test_group_membership_change_both_sides():
 
 
 def _users_base(propagation):
-    from tests.factory import user
-
     return snap(
         groups=[group("A", peers=["a1"]), group("B", peers=["b1"])],
         peers=[peer("a1", ["A"], user="u1"), peer("c1", user="u2"), peer("b1", ["B"])],
@@ -126,3 +130,32 @@ def test_user_group_changes_uses_initial_selection():
         frozenset({"u2"}),
         frozenset(),
     )
+
+
+def _user_snap(propagation):
+    return snap(
+        groups=[group("A", peers=["a1"]), group("B", peers=["b1"]), group("C", peers=["c1"])],
+        peers=[peer("a1", ["A"], user="u"), peer("b1", ["B"]), peer("c1", ["C"])],
+        users=[user("u", auto_groups=["A"])],
+        policies=[policy("p", rule(["B"], ["C"]))],
+        accounts=[{"settings": {"groups_propagation_enabled": propagation}}],
+    )
+
+
+def test_with_user_groups_propagates_add_and_remove():
+    after = with_user_groups(_user_snap(True), "u", {"B"})
+    assert after.users["u"].auto_groups == {"B"}
+    assert after.peers["a1"].group_ids == {"B"}
+    assert after.groups["B"].peer_ids == {"a1", "b1"} and after.groups["A"].peer_ids == set()
+
+
+def test_with_user_groups_without_propagation_only_changes_user():
+    before = _user_snap(False)
+    after = with_user_groups(before, "u", {"B"})
+    assert after.users["u"].auto_groups == {"B"} and after.peers == before.peers
+
+
+def test_with_memberships_applies_each_group():
+    after = with_memberships(_user_snap(False), {"A": frozenset(), "B": frozenset({"a1", "b1"})})
+    assert after.peers["a1"].group_ids == {"B"}
+    assert access_delta(_user_snap(False), after).gained

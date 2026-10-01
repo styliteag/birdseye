@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}{{ user.label }}{% endblock %}
+{% block content %}
+{% set names = snap.names() %}
+<p class="crumbs"><a href="/users">Users</a> /</p>
+<h1>{{ user.label }}{% if user.is_blocked %} <span class="pill">blocked</span>{% endif %}</h1>
+<p class="muted small">{{ user.email }}{% if is_self %} · this is you: role and block state cannot be changed here{% endif %}</p>
+{% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+
+<div class="split">
+  <form id="user-form" class="card" method="post" action="/users/{{ user.id }}">
+    <input type="hidden" name="csrf" value="{{ session.csrf }}">
+    <input type="hidden" name="user_field" value="1">
+    <label class="block">Role
+      <select name="role" {% if is_self or not can_users or user.role not in roles %}disabled{% endif %}>
+        {% if role not in roles %}<option value="{{ role }}" selected>{{ role }}</option>{% endif %}
+        {% for r in roles %}<option value="{{ r }}" {% if r == role %}selected{% endif %}>{{ r }}</option>{% endfor %}
+      </select>
+    </label>
+    {% if user.role == 'owner' %}<p class="muted small">Ownership is transferred in the NetBird dashboard.</p>{% endif %}
+    <label class="check"><input type="checkbox" name="blocked" value="1" {% if blocked %}checked{% endif %} {% if is_self or not can_users %}disabled{% endif %}> Blocked (cannot sign in, devices are disconnected)</label>
+
+    {% if can_users %}<input type="hidden" name="groups_field" value="1">{% endif %}
+    {% for gid in initial_groups %}<input type="hidden" name="groups_initial" value="{{ gid }}">
+    {% endfor %}
+    <fieldset class="picklist" data-picklist>
+      <legend>Auto-assigned groups <span class="muted" data-count>{{ chosen|length }} selected</span></legend>
+      <p class="muted small">
+        Devices this user adds join these groups.
+        {% if snap.groups_propagation %}Group propagation is on: existing devices follow added and removed groups too.
+        {% elif snap.groups_propagation is false %}Group propagation is off: existing devices keep their groups – use “Fix device groups” below.
+        {% endif %}
+      </p>
+      {% if other_groups %}<p class="muted small">Also assigned by the IdP or an integration (kept):
+        {% for gid in other_groups %}<span class="pill">{{ names.get(gid, gid) }}</span> {% endfor %}</p>{% endif %}
+      <div class="picklist-tools">
+        <input type="search" placeholder="Filter groups…" data-filter>
+        <label class="check"><input type="checkbox" data-only-selected> selected only</label>
+      </div>
+      <div class="picklist-items">
+        {% for g in groups %}
+        <label class="pick" data-text="{{ g.name|lower }}">
+          <input type="checkbox" name="groups" value="{{ g.id }}" {% if g.id in chosen %}checked{% endif %} {% if not can_users %}disabled{% endif %}>
+          <span class="name">{{ g.name }}</span>
+          <span class="muted small">{{ g.peer_ids|length }} peers</span>
+        </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    <fieldset class="picklist" data-picklist>
+      <legend>Devices <span class="muted">{{ devices|length }}</span></legend>
+      {% if drift and can_groups %}<p class="muted small">{{ drift|length }} device(s) differ from the auto-assigned groups. Tick “fix” to put them into exactly those groups (on save, against the groups selected above). IdP, router and “All” groups are not touched.</p>{% endif %}
+      <div class="picklist-items">
+        {% for p in devices %}
+        {% set d = drift.get(p.id) %}
+        <div class="pick">
+          <span class="dot {{ 'on' if p.connected else 'off' }}" title="{{ 'online' if p.connected else 'offline' }}"></span>
+          <span class="name">{{ p.name }}</span>
+          <span class="muted small">{{ p.ip }}</span>
+          {% if d %}
+            {% for gid in d.missing|sort %}<span class="pill sev-warning" title="missing">+ {{ names.get(gid, gid) }}</span> {% endfor %}
+            {% for gid in d.extra|sort %}<span class="pill sev-warning" title="extra">− {{ names.get(gid, gid) }}</span> {% endfor %}
+          {% else %}<span class="muted small">in sync</span>{% endif %}
+          {% if can_groups %}<label class="check"><input type="checkbox" name="align" value="{{ p.id }}" {% if p.id in align %}checked{% endif %}> fix</label>{% endif %}
+        </div>
+        {% else %}<p class="muted small">No devices.</p>{% endfor %}
+      </div>
+    </fieldset>
+
+    {% if can_users or can_groups %}<div class="actions"><button class="primary">Save</button></div>{% endif %}
+  </form>
+
+  <div class="side">
+    <section class="card">
+      <h3>Effect of this change</h3>
+      <div id="delta" hx-post="/users/{{ user.id }}/preview" hx-include="#user-form"
+           hx-trigger="change from:#user-form delay:200ms">
+        <p class="muted small">Change groups or tick “fix” to see who gains or loses access.</p>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

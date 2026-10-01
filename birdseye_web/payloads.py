@@ -172,13 +172,24 @@ def group_payload(
     }
 
 
-def user_payload(fresh: Mapping[str, Any], auto_groups: Iterable[str]) -> Json:
+# Roles a user can be given here. Ownership is transferred in NetBird itself.
+ROLES = ("admin", "network_admin", "user", "auditor", "billing_admin")
+
+
+def user_payload(
+    fresh: Mapping[str, Any],
+    auto_groups: Iterable[str],
+    *,
+    role: str | None = None,
+    is_blocked: bool | None = None,
+) -> Json:
     """Full user PUT body. NetBird requires role and block state on every
-    update, so they are carried over from a fresh GET."""
-    if not fresh.get("role"):
+    update; whatever is not given is carried over from a fresh GET."""
+    current = str(fresh.get("role") or "")
+    if not current:
         raise PayloadError(f"user {fresh.get('id')!r} has no role")
-    return {
-        "role": str(fresh["role"]),
-        "auto_groups": sorted(set(auto_groups)),
-        "is_blocked": bool(fresh.get("is_blocked", False)),
-    }
+    new_role = current if role is None else role
+    if new_role != current and (new_role not in ROLES or current not in ROLES):
+        raise PayloadError(f"role {current!r} cannot be changed to {new_role!r} here")
+    blocked = bool(fresh.get("is_blocked", False)) if is_blocked is None else is_blocked
+    return {"role": new_role, "auto_groups": sorted(set(auto_groups)), "is_blocked": blocked}

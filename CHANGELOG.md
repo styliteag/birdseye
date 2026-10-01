@@ -8,7 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
--
+- birdseye-web **user editor** (`/users`): change a user's role, block state
+  and auto-assigned groups (`PUT /users/{id}`, IdP-issued groups carried
+  over), with the live access preview. Shows each of the user's devices whose
+  groups differ from the auto-groups and fixes selected ones by updating the
+  affected groups (`PUT /groups/{id}`, re-read after the user update so
+  NetBird's group propagation is respected, resources kept). Owner role cannot
+  be given; your own role and block state are left alone.
+
+### Changed
+- Anomalies: “Device groups differ from the user's default” now links to the
+  user editor. The check and the editor share one drift module.
 
 ## [0.8.0] - 2026-09-28
 

@@ -19,6 +19,7 @@ from birdseye_web import (
     routes_matrix,
     routes_policies,
     routes_quickedit,
+    routes_users,
 )
 from birdseye_web.config import Settings, load_settings
 from birdseye_web.context import TEMPLATES, AppContext, CSRFError, LoginRequired
@@ -73,6 +74,7 @@ def create_app(
     app.include_router(routes_matrix.router)
     app.include_router(routes_quickedit.router)
     app.include_router(routes_groups.router)
+    app.include_router(routes_users.router)
     app.include_router(routes_policies.router)
     app.include_router(routes_anomalies.router)
     app.include_router(routes_jobs.router)

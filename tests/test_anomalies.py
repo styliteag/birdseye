@@ -37,6 +37,7 @@ def test_peer_group_deviation_from_user_default():
     assert hit.severity == "warning"
     assert "missing: Y" in hit.detail and "extra: X" in hit.detail
     assert "Uschi" in hit.title
+    assert hit.link == "/users/u1"
 
 
 def test_peer_matching_user_default_is_fine():

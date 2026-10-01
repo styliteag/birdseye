@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Users{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Users <span class="count">{{ people|length }}</span></h1>
+  <input type="search" name="q" value="{{ q }}" placeholder="Search name or email…"
+         hx-get="/users" hx-target="#user-rows" hx-trigger="input changed delay:250ms" hx-push-url="true">
+</div>
+<p class="muted small">Service users are not listed. “Drift” counts devices whose groups differ from the user's auto-assigned groups.</p>
+<table class="list">
+  <thead><tr><th>Name</th><th>Role</th><th>Auto-assigned groups</th><th class="num">Devices</th><th class="num">Drift</th></tr></thead>
+  <tbody id="user-rows">{% include "_user_rows.html" %}</tbody>
+</table>
+{% endblock %}

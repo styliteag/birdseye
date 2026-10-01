@@ -13,6 +13,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 
 from birdseye_web.access import group_members
+from birdseye_web.drift import peer_drift
 from birdseye_web.models import Snapshot
 
 SEVERITY_ORDER = {"error": 0, "warning": 1, "info": 2}
@@ -139,33 +140,24 @@ def _direct_targets(snap: Snapshot) -> Iterator[Finding]:
 
 
 def _device_deviation(snap: Snapshot) -> Iterator[Finding]:
-    # Router peer groups are infrastructure, not something a user's default decides.
-    routers = {gid for n in snap.networks.values() for gid in n.router_group_ids}
-    managed = {
-        g.id
-        for g in snap.groups.values()
-        if g.issued == "api" and not g.is_all and g.id not in routers
-    }
     for p in sorted(snap.peers.values(), key=lambda p: p.name.lower()):
         u = snap.users.get(p.user_id)
         if u is None or u.is_service_user:
             continue
-        have = p.group_ids & managed
-        want = u.auto_groups & managed
-        missing, extra = want - have, have - want
-        if not missing and not extra:
+        d = peer_drift(snap, p.id)
+        if d.ok:
             continue
         parts = []
-        if missing:
-            parts.append("missing: " + ", ".join(sorted(_group_name(snap, g) for g in missing)))
-        if extra:
-            parts.append("extra: " + ", ".join(sorted(_group_name(snap, g) for g in extra)))
+        if d.missing:
+            parts.append("missing: " + ", ".join(sorted(_group_name(snap, g) for g in d.missing)))
+        if d.extra:
+            parts.append("extra: " + ", ".join(sorted(_group_name(snap, g) for g in d.extra)))
         yield Finding(
             "device-deviation",
             "warning",
             f"{p.name} (user {u.label})",
             detail="; ".join(parts),
-            link=f"/reach?src=p:{p.id}",
+            link=f"/users/{u.id}",
         )
 
 
