@@ -8,7 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
--
+- birdseye-web footer with the versions in use: birdseye-web (and its git
+  revision), the birdseye container (from the shared jobs directory, when
+  mounted) and NetBird's management server, with a hint when NetBird has an
+  update (`GET /api/instance/version`, cached 10 minutes).
 
 ## [0.9.0] - 2026-10-01
 

@@ -38,6 +38,9 @@ LABEL org.opencontainers.image.title="birdseye-web" \
       org.opencontainers.image.revision="${VCS_REF}" \
       org.opencontainers.image.licenses="MIT"
 
+ENV BIRDSEYE_VERSION=${VERSION} \
+    BIRDSEYE_REVISION=${VCS_REF}
+
 WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 COPY birdseye_web /app/birdseye_web

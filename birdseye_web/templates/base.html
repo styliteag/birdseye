@@ -41,5 +41,6 @@
     {% if request.query_params.get('deleted') %}<div class="flash ok">Deleted.</div>{% endif %}
     {% block content %}{% endblock %}
   </main>
+  {% if session %}<footer class="versions" hx-get="/versions" hx-trigger="load delay:300ms"></footer>{% endif %}
 </body>
 </html>

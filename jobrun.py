@@ -250,7 +250,12 @@ def write_registry(base: Path, specs: Iterable[JobSpec]) -> None:
     ensure_dirs(base)
     _write_json(
         base / "registry.json",
-        {"written": _now(), "jobs": [asdict(s) for s in specs]},
+        {
+            "written": _now(),
+            # shown in birdseye-web's footer; set from the image build arg
+            "version": os.environ.get("NETBIRD_TOOLKIT_VERSION", ""),
+            "jobs": [asdict(s) for s in specs],
+        },
     )
 
 

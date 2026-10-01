@@ -1,0 +1,3 @@
+<span>birdseye-web {{ web }}{% if rev %} <span class="muted">({{ rev }})</span>{% endif %}</span>
+{% if container %}<span>· birdseye {{ container }}</span>{% endif %}
+{% if netbird %}<span>· NetBird {{ netbird.current }}{% if netbird.update and netbird.available %} <span class="pill sev-warning">{{ netbird.available }} available</span>{% endif %}</span>{% endif %}

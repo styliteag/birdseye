@@ -305,3 +305,9 @@ def test_start_job_busy_while_locked(jobs):
     jobrun.write_registry(jobs, [_spec("history")])
     with jobrun.job_lock(jobs, "history"):
         assert jobrun.start_job(jobs, "history", "audit", spawn=lambda c: None) == "busy"
+
+
+def test_registry_records_container_version(jobs, monkeypatch):
+    monkeypatch.setenv("NETBIRD_TOOLKIT_VERSION", "0.9.0")
+    jobrun.write_registry(jobs, [_spec()])
+    assert json.loads((jobs / "registry.json").read_text())["version"] == "0.9.0"

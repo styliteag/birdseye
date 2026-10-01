@@ -289,3 +289,6 @@ ul.changes { list-style: none; margin: 4px 0 0; padding: 0; }
 ul.changes li { padding: 2px 0; }
 ul.changes .old { color: var(--deny); text-decoration: line-through; }
 ul.changes .new { color: var(--ok); }
+footer.versions { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;
+  padding: 12px 20px 20px; color: var(--muted); font-size: 12px; }
+main.wide + footer.versions { display: none; }
