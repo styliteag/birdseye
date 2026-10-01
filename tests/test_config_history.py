@@ -73,3 +73,30 @@ def test_setup_key_values_are_stripped(tmp_path, monkeypatch):
     final, _ = ch.take_snapshot(Keys(), tmp_path, NOW)
     text = (final / "setup_keys.json").read_text()
     assert "SECRET-VALUE" not in text and '"name": "n"' in text
+
+
+def test_unchanged_config_writes_no_new_snapshot(tmp_path, monkeypatch):
+    class Live(FakeClient):
+        def __init__(self, online):
+            super().__init__()
+            self.online = online
+
+        def get(self, path):
+            if path == "peers":
+                return [
+                    {
+                        "id": "p",
+                        "name": "p",
+                        "connected": self.online,
+                        "last_seen": str(self.online),
+                    }
+                ]
+            return super().get(path)
+
+    first, _ = ch.take_snapshot(Live(True), tmp_path, NOW)
+    later = NOW.replace(hour=13)
+    again, _ = ch.take_snapshot(Live(False), tmp_path, later)  # only runtime state differs
+    assert first is not None and again is None
+    assert ch.snapshot_stamps(tmp_path) == [first.name]
+    forced, _ = ch.take_snapshot(Live(False), tmp_path, later, force=True)
+    assert forced is not None and len(ch.snapshot_stamps(tmp_path)) == 2

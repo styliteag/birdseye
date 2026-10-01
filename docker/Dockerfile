@@ -54,6 +54,8 @@ COPY --from=builder /app/.venv /app/.venv
 
 # Root-level scripts (events.py, cleanup_ephemeral.py, allow_ping.py, ...).
 COPY *.py /app/
+# config_history.py compares snapshots with the web UI's own normalization
+COPY birdseye_web /app/birdseye_web
 # The forwarder lives under docker/.
 COPY docker/event_forwarder.py /app/event_forwarder.py
 # Runtime scaffolding.

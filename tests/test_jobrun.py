@@ -277,3 +277,31 @@ def test_unknown_job_name_never_touches_the_filesystem(jobs):
     assert not (jobs / "escaped.lock").exists()
     assert not (jobs.parent / "escaped.lock").exists()
     assert list((jobs / "state").glob("*.lock")) == []
+
+
+# --- start_job (container-internal trigger, e.g. the forwarder) -----------------
+
+
+def test_start_job_spawns_registered_command(jobs):
+    jobrun.write_registry(jobs, [_spec("history", command=["/app/x.py"], triggerable=False)])
+    spawned = []
+    assert jobrun.start_job(jobs, "history", "audit", spawn=spawned.append) == "started"
+    [cmd] = spawned
+    assert cmd[-2:] == ["--", "/app/x.py"] and cmd[5:7] == ["--trigger", "audit"]
+
+
+@pytest.mark.parametrize(
+    "specs, outcome",
+    [([], "disabled"), ([_spec("history", enabled=False)], "disabled")],
+)
+def test_start_job_disabled(jobs, specs, outcome):
+    jobrun.write_registry(jobs, specs)
+    spawned = []
+    assert jobrun.start_job(jobs, "history", "audit", spawn=spawned.append) == outcome
+    assert spawned == []
+
+
+def test_start_job_busy_while_locked(jobs):
+    jobrun.write_registry(jobs, [_spec("history")])
+    with jobrun.job_lock(jobs, "history"):
+        assert jobrun.start_job(jobs, "history", "audit", spawn=lambda c: None) == "busy"

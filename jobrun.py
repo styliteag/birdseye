@@ -279,6 +279,26 @@ def _run_command(spec: JobSpec, mode: str, by: str) -> list[str]:
     return [WRAPPER, *this, "--trigger", f"manual:{by}", "--mode", mode, "--", *job_cmd]
 
 
+def start_job(
+    base: Path,
+    key: str,
+    trigger: str,
+    spawn: Callable[[list[str]], object] | None = None,
+) -> str:
+    """Start a registered job from inside this container (e.g. the forwarder
+    after a config change). Not subject to JOB_TRIGGERS: that list limits
+    what the web container may ask for. Returns started | busy | disabled."""
+    spec = load_registry(base).get(key)
+    if spec is None or not spec.enabled or not spec.command:
+        return "disabled"
+    with job_lock(base, key) as free:
+        if not free:
+            return "busy"
+    this = [sys.executable, os.path.abspath(__file__), "run", key]
+    (spawn or _spawn)([WRAPPER, *this, "--trigger", trigger, "--", *spec.command])
+    return "started"
+
+
 def handle_request(
     base: Path,
     path: Path,

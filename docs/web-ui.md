@@ -247,6 +247,14 @@ so the snapshot sees the whole account):
       # HISTORY_EMAIL_TO: ops@example.com  # failure mail (else BACKUP_EMAIL_TO, SMTP_TO)
 ```
 
+Besides the schedule, the audit-event forwarder starts a snapshot about a
+minute after each configuration change, wherever it was made (birdseye-web,
+NetBird dashboard, CLI, API): `HISTORY_ON_CHANGE=1` (default),
+`HISTORY_SETTLE_SECONDS=60`. Peer logins and similar noise
+(`HISTORY_TRIGGER_EXCLUDE`, default `*login*`) do not count. A run whose
+configuration equals the newest snapshot writes nothing (`--force` writes
+anyway), so an hourly schedule does not fill the list with copies.
+
 Each run writes `/var/lib/birdseye/jobs/history/<YYYYMMDDTHHMMSSZ>/` with one
 JSON file per endpoint (the same set `export_objects.py` mails) plus
 `manifest.json`. The files are **not encrypted**: they hold the account

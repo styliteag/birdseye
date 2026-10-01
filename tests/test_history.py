@@ -81,3 +81,7 @@ def test_object_timeline(tmp_path):
         (A, "groups", "One", "first seen"),
     ]
     assert t[0].fields == (("name", "One", "Two"),)
+
+
+def test_normalize_tolerates_odd_policy():
+    assert normalize("policies", {"id": "x"}) == {"id": "x"}

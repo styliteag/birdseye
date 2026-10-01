@@ -121,7 +121,13 @@ def load_kind(base: Path, stamp: str, slug: str) -> list[Json]:
     a one-item list with the slug as its ID."""
     _check(stamp, slug)
     path = base / stamp / f"{slug}.json"
-    if not path.is_file() or not path.resolve().is_relative_to(base.resolve()):
+    if not path.resolve().is_relative_to(base.resolve()):
+        return []
+    return _load_file(path, slug)
+
+
+def _load_file(path: Path, slug: str) -> list[Json]:
+    if not path.is_file():
         return []
     data = _read(str(path), path.stat().st_mtime_ns)
     if isinstance(data, Mapping):
@@ -146,7 +152,10 @@ def _flatten(value: Any) -> Any:
 def normalize(slug: str, obj: Mapping[str, Any]) -> Json:
     """Configuration-only view of one object, comparable across snapshots."""
     if slug == "policies":
-        return {"id": str(obj.get("id") or ""), **policy_for_put(obj)}
+        try:
+            return {"id": str(obj.get("id") or ""), **policy_for_put(obj)}
+        except (KeyError, TypeError, ValueError):
+            pass  # unexpected shape: compare it generically rather than fail
     return {k: _flatten(v) for k, v in obj.items() if k not in VOLATILE and v is not None}
 
 
@@ -199,6 +208,15 @@ def diff_kind(slug: str, old: list[Json], new: list[Json]) -> KindDiff:
                 key=lambda c: c.name.lower(),
             )
         ),
+    )
+
+
+def same_config(a: Path, b: Path) -> bool:
+    """True when two snapshot directories differ in runtime state at most —
+    the same test the History page's diff applies."""
+    return all(
+        _by_id(s, _load_file(a / f"{s}.json", s)) == _by_id(s, _load_file(b / f"{s}.json", s))
+        for s, _ in KINDS
     )
 
 

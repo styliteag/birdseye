@@ -19,7 +19,11 @@ Optional:
   HISTORY_EMAIL_TO   failure mail (falls back to BACKUP_EMAIL_TO, then SMTP_TO)
   CHECKMK_SPOOL_DIR  Checkmk local check `birdseye_history`
 
-  uv run config_history.py [--dry-run]
+A snapshot whose configuration equals the newest one (runtime state such as
+online or last seen aside) is not written. Besides the cron schedule, the
+audit-event forwarder starts this job shortly after each configuration change.
+
+  uv run config_history.py [--dry-run] [--force]
 """
 
 from __future__ import annotations
@@ -85,9 +89,13 @@ def _strip_key_values(snapshot: Path) -> None:
         path.write_text(json.dumps(clean, indent=2, sort_keys=True, ensure_ascii=False))
 
 
-def take_snapshot(client, base: Path, now: datetime) -> tuple[Path, list[str]]:
+def take_snapshot(
+    client, base: Path, now: datetime, *, force: bool = False
+) -> tuple[Path | None, list[str]]:
     """Fetch into a temp dir next to the target, then rename: readers never
-    see a half-written snapshot."""
+    see a half-written snapshot. Returns no path when the configuration is
+    the same as in the newest snapshot (unless `force`)."""
+    from birdseye_web.history import same_config
     from export_objects import dump_objects, write_manifest
 
     stamp = now.strftime(STAMP_FORMAT)
@@ -104,6 +112,10 @@ def take_snapshot(client, base: Path, now: datetime) -> tuple[Path, list[str]]:
             )
         _strip_key_values(tmp)
         write_manifest(tmp, summary, env("NB_URL"))
+        previous = snapshot_stamps(base)
+        if previous and not force and same_config(base / previous[-1], tmp):
+            shutil.rmtree(tmp)
+            return None, written
         final = base / stamp
         tmp.rename(final)
     except BaseException:
@@ -127,6 +139,7 @@ def main(argv: list[str] | None = None) -> int:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     ap.add_argument("--dry-run", action="store_true", help="fetch into a temp dir, write nothing")
+    ap.add_argument("--force", action="store_true", help="write a snapshot even if nothing changed")
     args = ap.parse_args(argv if argv is not None else sys.argv[1:])
 
     base = history_dir()
@@ -146,11 +159,10 @@ def main(argv: list[str] | None = None) -> int:
             _log(f"dry-run: fetched {len(written)} endpoint(s), nothing written to {base}")
             _prune(base, now, keep_days, dry_run=True)
             return 0
-        final, written = take_snapshot(client, base, now)
+        final, written = take_snapshot(client, base, now, force=args.force)
         removed = _prune(base, now, keep_days, dry_run=False)
-        summary = (
-            f"{final.name}: {len(written)} endpoint(s); {len(removed)} old snapshot(s) removed"
-        )
+        what = f"{final.name}: {len(written)} endpoint(s)" if final else "unchanged, not written"
+        summary = f"{what}; {len(removed)} old snapshot(s) removed"
         _log(summary)
         checkmk.write(SPOOL_FILE, CHECK_NAME, checkmk.OK, summary, SPOOL_MAX_AGE)
         return 0

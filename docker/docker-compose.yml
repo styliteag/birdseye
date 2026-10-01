@@ -66,6 +66,9 @@ services:
       CRON_CONFIG_HISTORY: ${CRON_CONFIG_HISTORY:-}
       HISTORY_KEEP_DAYS: ${HISTORY_KEEP_DAYS:-90}
       HISTORY_EMAIL_TO: ${HISTORY_EMAIL_TO:-}
+      # Forwarder: snapshot again shortly after each config change (0 = cron only)
+      HISTORY_ON_CHANGE: ${HISTORY_ON_CHANGE:-1}
+      HISTORY_SETTLE_SECONDS: ${HISTORY_SETTLE_SECONDS:-60}
 
       # Volume backup (mount NetBird volumes read-only under /backup, see below)
       BACKUP_PATHS: ${BACKUP_PATHS:-}

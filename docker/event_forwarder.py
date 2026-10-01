@@ -37,6 +37,8 @@ from netbird.exceptions import (
 # one level up.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import jobrun  # noqa: E402
+from change_trigger import ChangeTrigger  # noqa: E402
 from nb_client import client_from_env  # noqa: E402
 from resolver import InitiatorResolver, build_initiator_resolver, resolve_initiator  # noqa: E402
 from smtp_helpers import SmtpConfig, default_port, open_smtp, resolve_tls_mode  # noqa: E402
@@ -655,6 +657,7 @@ def _run(
     mattermost: MattermostSink,
     email: EmailSink,
     heartbeat: Heartbeat,
+    history: ChangeTrigger | None = None,
 ) -> int:
     seeded = state.load()
     current_backoff = poll_interval
@@ -772,7 +775,13 @@ def _run(
 
             state.last_id = _event_sort_key(new_events[-1])
             state.save()
+            if history is not None:
+                history.note(new_events)
 
+        if history is not None:
+            outcome = history.tick()
+            if outcome:
+                _log_info(f"config changed: history snapshot {outcome}")
         email.tick()
         heartbeat.beat(state, ok=True, new=len(new_events))
 
@@ -826,6 +835,28 @@ def _build_email_sink(resolver: InitiatorResolver) -> EmailSink:
     )
 
 
+def _history_trigger(jobs_dir: Path) -> ChangeTrigger | None:
+    """Snapshot the config (job `history`) shortly after each change. Inert
+    when the history job is not scheduled (`CRON_CONFIG_HISTORY` empty)."""
+    if not _is_truthy(_env("HISTORY_ON_CHANGE", "1")):
+        return None
+
+    def start(job: str, trigger: str) -> str:
+        try:
+            return jobrun.start_job(jobs_dir, job, trigger)
+        except OSError as e:  # a failed spawn must not stop the forwarder
+            _log_err(f"cannot start {job}: {e}")
+            return "disabled"
+
+    return ChangeTrigger(
+        "history",
+        settle_s=_env_float("HISTORY_SETTLE_SECONDS", 60.0),
+        start=start,
+        include=_env_list("HISTORY_TRIGGER_INCLUDE", "*"),
+        exclude=_env_list("HISTORY_TRIGGER_EXCLUDE", "*login*"),
+    )
+
+
 def main() -> int:
     load_dotenv()
 
@@ -849,9 +880,8 @@ def main() -> int:
     email_exclude = _env_list("EMAIL_EXCLUDE", "")
 
     state = State(state_path)
-    heartbeat = Heartbeat(
-        Path(_env("JOBS_DIR", "/var/lib/birdseye/jobs")) / "state" / "forwarder.json"
-    )
+    jobs_dir = Path(_env("JOBS_DIR", "/var/lib/birdseye/jobs"))
+    heartbeat = Heartbeat(jobs_dir / "state" / "forwarder.json")
     client = client_from_env(key="user")
     try:
         resolver = build_initiator_resolver(client)
@@ -895,6 +925,7 @@ def main() -> int:
         mattermost=mattermost,
         email=email,
         heartbeat=heartbeat,
+        history=_history_trigger(jobs_dir),
     )
 
 

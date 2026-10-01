@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   type, shows each object's versions, and restores a single policy or group
   (`PUT`, or `POST` when it was deleted) after an access preview; a policy
   whose groups or posture checks are gone is not restored.
+- Config history follows changes: the audit-event forwarder starts a
+  snapshot ~1 min after the last configuration change (`HISTORY_ON_CHANGE`,
+  `HISTORY_SETTLE_SECONDS`, `HISTORY_TRIGGER_INCLUDE/EXCLUDE`), and a run
+  that finds the configuration unchanged writes nothing (`--force` to
+  override). The birdseye image now also contains `birdseye_web/`, so the
+  job and the History page compare snapshots the same way.
 - birdseye-web **audit log** (`/audit`): NetBird's audit events with
   filters (initiator, activity or category, target, date range, free text),
   paging, names instead of IDs (deleted objects by their recorded name) and
