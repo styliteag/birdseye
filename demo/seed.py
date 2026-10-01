@@ -129,6 +129,7 @@ USERS = (
     ("dan@acme.test", "Dan Deals", "user", ["Sales"]),
     ("eve@acme.test", "Eve Support", "user", ["Support"]),
     ("frank@acme.test", "Frank Audit", "auditor", []),
+    ("nina@acme.test", "Nina Netadmin", "network_admin", []),
 )
 
 

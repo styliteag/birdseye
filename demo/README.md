@@ -26,7 +26,7 @@ After code changes, rebuild only our images:
 - birdseye-web: http://localhost:58090 (built from this checkout)
 - NetBird dashboard: http://netbird.localhost:58080
 - Login: `secrets.env` → DEMO_OWNER_EMAIL / DEMO_OWNER_PASSWORD (owner),
-  DEMO_PW_<USER> for anna/ben/clara/dan/eve
+  DEMO_PW_<USER> for anna (admin), ben/clara/dan/eve (user), frank (auditor), nina (network_admin)
 
 Needs: Docker Desktop running, `uv`, ports 58080, 58090, 3478/udp free.
 Playwright's Chromium: `uv run --with playwright python -m playwright install chromium`.
@@ -75,6 +75,7 @@ Playwright's Chromium: `uv run --with playwright python -m playwright install ch
 | `login_users.py` | device-code login of user-owned peers |
 | `changes.py` | two rounds of config changes for History/Audit |
 | `shoot.py` | screenshots |
-| `roles_check.py` | walk every page as non-admin users (ben = user, frank = auditor); `--view-unblocked` |
+| `roles_check.py` | walk every page as non-admin users (ben = user, frank = auditor, nina = network admin; default ben + frank); `--view-unblocked` |
+| `role_perms.py` | print a demo user's real NetBird permissions (borrows the dashboard's token) |
 | `publish_docs.py` | curated, compressed screenshots for the docs |
 | `secrets.env`, `web.env`, `peers.yml`, `data/` | generated, wiped by down.sh |

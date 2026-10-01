@@ -25,6 +25,7 @@ POL = {p["name"]: p["id"] for p in api.get("policies")}
 U = {u.get("email") or u["name"]: u["id"] for u in api.get("users")}
 K = {k["name"]: k["id"] for k in api.get("setup-keys")}
 NET = {n["name"]: n["id"] for n in api.get("networks")}
+RES = {r["name"]: r["id"] for r in api.get(f"networks/{NET['Office']}/resources")}
 
 PAGES = [
     ("my-access", "/my-access"),
@@ -40,17 +41,27 @@ PAGES = [
     ("user-self", f"/users/{U['ben@acme.test']}"),
     ("networks", "/networks"),
     ("network", f"/networks/{NET['Office']}"),
+    ("resource", f"/resources/{RES['nas']}"),
     ("resources", "/resources"),
     ("policies", "/policies"),
     ("policy", f"/policies/{POL['Dev to servers']}"),
     ("setup-keys", "/setup-keys"),
+    ("setup-key", f"/setup-keys/{K['ci-runners']}"),
     ("anomalies", "/anomalies"),
     ("audit", "/audit"),
     ("history", "/history"),
     ("jobs", "/jobs"),
 ]
 
-WRITE_BUTTONS = "button.primary, button.danger, a.button.primary, form[hx-post*='allow'] button"
+WRITE_BUTTONS = (
+    "button.primary, button.danger, a.button.primary, form[hx-post*='allow'] button,"
+    " button[name=action]"
+)
+# write controls: enabled inputs that change something (not filters/search)
+EDITABLE = (
+    "form[method=post] input[name]:not([type=hidden]):not([disabled]),"
+    " form[method=post] select[name]:not([disabled])"
+)
 
 
 def login(page: Page, user: str) -> str:
@@ -75,6 +86,7 @@ def describe(page: Page) -> str:
         ).all_inner_texts()
         if t.strip()
     ]
+    editable = sorted({e.get_attribute("name") for e in page.locator(EDITABLE).all()} - {"q", None})
     parts = []
     if cells:
         parts.append(f"{cells} cells")
@@ -82,6 +94,8 @@ def describe(page: Page) -> str:
         parts.append(f"{rows} rows")
     if buttons:
         parts.append("buttons: " + ", ".join(buttons))
+    if editable:
+        parts.append("fields: " + ",".join(editable[:8]))
     if errors:
         parts.append("ERR: " + " | ".join(errors))
     return "; ".join(parts) or "(empty)"
