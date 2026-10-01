@@ -9,3 +9,4 @@ __pycache__/
 state.json
 cron.env
 .coverage
+.dev/
