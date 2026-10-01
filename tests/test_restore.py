@@ -62,3 +62,18 @@ def test_all_group_and_other_kinds_cannot_be_restored():
 
 def test_group_without_name_is_blocked_not_an_error():
     assert plan_restore(NOW, "groups", {"id": "X", "name": ""}).blocked
+
+
+def test_group_restore_shows_resources_lost_since():
+    from tests.factory import resource
+
+    now = snap(
+        peers=[peer("a", ["G"])],
+        groups=[group("U", peers=["a"]), group("G", resources=["r1"])],
+        resources=[resource("r1", ["G"])],
+        policies=[policy("p", rule(["U"], ["G"]))],
+    )
+    plan = plan_restore(now, "groups", group("G"))  # old version: no resources
+    assert plan.payload["resources"] == []
+    assert ("a", "r1") in {(x.src.id, x.dst.id) for x in access_delta(now, plan.after).lost}
+    assert any("r1" in n and "removed" in n for n in plan.notes)

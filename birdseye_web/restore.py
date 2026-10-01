@@ -13,7 +13,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from typing import Any
 
-from birdseye_web.diff import with_group_members, with_policy
+from birdseye_web.diff import with_group_members, with_group_resources, with_policy
 from birdseye_web.models import Group, Snapshot, parse_policy
 from birdseye_web.payloads import PayloadError, group_payload, policy_for_put
 
@@ -89,12 +89,20 @@ def _plan_group(snap: Snapshot, raw: Mapping[str, Any]) -> RestorePlan:
         body = group_payload(name, kept_peers, kept_res)
     except PayloadError as exc:
         return RestorePlan(problems=(str(exc),))
-    if gid in snap.groups:
-        after = with_group_members(snap, gid, kept_peers)
-        return RestorePlan("PUT", f"groups/{gid}", body, after, notes=tuple(notes))
-    new = Group(gid, name, frozenset(), frozenset(str(r["id"]) for r in kept_res))
-    after = with_group_members(replace(snap, groups={**snap.groups, gid: new}), gid, kept_peers)
-    return RestorePlan("POST", "groups", body, after, notes=tuple(notes))
+    res_ids = frozenset(r["id"] for r in body["resources"])
+    current = snap.groups.get(gid)
+    if current is not None:
+        notes += [
+            f"resource {snap.resources[r].name if r in snap.resources else r} is removed "
+            "from the group (added after this version)"
+            for r in sorted(current.resource_ids - res_ids)
+        ]
+        base, method, path = snap, "PUT", f"groups/{gid}"
+    else:
+        empty = Group(gid, name, frozenset(), frozenset())
+        base, method, path = replace(snap, groups={**snap.groups, gid: empty}), "POST", "groups"
+    after = with_group_resources(with_group_members(base, gid, kept_peers), gid, res_ids)
+    return RestorePlan(method, path, body, after, notes=tuple(notes))
 
 
 def plan_restore(snap: Snapshot, slug: str, raw: Mapping[str, Any]) -> RestorePlan:

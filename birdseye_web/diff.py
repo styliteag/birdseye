@@ -227,3 +227,21 @@ def without_network(snap: Snapshot, network_id: str) -> Snapshot:
         if res.network_id == network_id:
             after = without_resource(after, rid)
     return replace(after, networks={k: v for k, v in after.networks.items() if k != network_id})
+
+
+def with_group_resources(snap: Snapshot, group_id: str, resource_ids: Iterable[str]) -> Snapshot:
+    """Snapshot copy with a group's resources replaced, on both sides."""
+    members = frozenset(resource_ids)
+    group = snap.groups[group_id]
+    resources = {
+        rid: replace(
+            r,
+            group_ids=(r.group_ids | {group_id}) if rid in members else (r.group_ids - {group_id}),
+        )
+        for rid, r in snap.resources.items()
+    }
+    return replace(
+        snap,
+        groups={**snap.groups, group_id: replace(group, resource_ids=members)},
+        resources=resources,
+    )
