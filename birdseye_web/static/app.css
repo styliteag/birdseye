@@ -285,3 +285,7 @@ table.fields { margin-top: 4px; }
 table.fields td { padding: 2px 6px; vertical-align: top; }
 table.fields code { white-space: pre-wrap; word-break: break-word; }
 pre { overflow: auto; background: var(--bg); padding: 8px; border-radius: 6px; }
+ul.changes { list-style: none; margin: 4px 0 0; padding: 0; }
+ul.changes li { padding: 2px 0; }
+ul.changes .old { color: var(--deny); text-decoration: line-through; }
+ul.changes .new { color: var(--ok); }

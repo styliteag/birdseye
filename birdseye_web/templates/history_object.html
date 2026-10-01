@@ -4,6 +4,7 @@
 <p class="crumbs"><a href="/history">Config history</a> /</p>
 <h1>{{ timeline[0].name if timeline else oid }} <span class="count">{{ labels[timeline[0].slug] if timeline else '' }}</span></h1>
 <p class="muted small"><a href="/audit?target={{ oid }}">Audit log entries</a>{% if timeline and timeline[0].slug in editors and timeline[0].event != 'deleted' %} · <a href="{{ editors[timeline[0].slug] }}{{ oid }}">Open editor</a>{% endif %}</p>
+{% include "_history_status.html" %}
 {% for v in timeline %}
 <section class="card anomaly">
   <strong>{{ v.stamp[:4] }}-{{ v.stamp[4:6] }}-{{ v.stamp[6:8] }} {{ v.stamp[9:11] }}:{{ v.stamp[11:13] }}:{{ v.stamp[13:15] }} UTC</strong>

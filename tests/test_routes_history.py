@@ -129,3 +129,54 @@ def test_corrupt_snapshot_files_are_skipped(client, jobs):
     (jobs / "history" / "20241399T000000Z").mkdir()
     login(client)
     assert client.get("/history").status_code == 200
+
+
+def test_diff_is_readable_field_by_field(client):
+    login(client)
+    html = client.get("/history").text
+    assert "rules › r1 › protocol" in html and ">all</span> → <span" in html
+    assert "+ 22" in html and "{&#34;action&#34;" not in html
+
+
+def _registry(jobs, enabled=True, state=None):
+    (jobs / "registry.json").write_text(
+        json.dumps({"jobs": [{"key": "history", "label": "history", "enabled": enabled}]})
+    )
+    if state:
+        (jobs / "state").mkdir(exist_ok=True)
+        (jobs / "state" / "history.json").write_text(json.dumps(state))
+
+
+def _change(nb, ts="2026-09-30T12:00:00Z", code="group.update"):
+    nb.data["events/audit"] = [
+        {"id": "1", "timestamp": ts, "activity": code, "activity_code": code, "initiator_id": "u1"}
+    ]
+
+
+def test_status_pending_after_change(client, nb, jobs):
+    _registry(jobs)
+    _change(nb)
+    login(client)
+    html = client.get("/history").text
+    assert "changed at 12:00:00 UTC" in html and 'hx-get="/history/status?waiting=1"' in html
+
+
+def test_status_unscheduled_and_login_noise(client, nb, jobs):
+    _registry(jobs, enabled=False)
+    _change(nb)
+    login(client)
+    assert "not scheduled" in client.get("/history").text
+    _change(nb, code="user.peer.login")
+    assert "changed at" not in client.get("/history").text
+
+
+def test_status_running_and_reload_when_done(client, nb, jobs):
+    _registry(jobs, state={"running": True, "started": "2026-09-30T12:00:30+00:00"})
+    _change(nb)
+    login(client)
+    assert "being taken right now" in client.get("/history/status").text
+    _registry(
+        jobs, state={"running": False, "started": "2026-09-30T12:00:30+00:00", "exit_code": 0}
+    )
+    r = client.get("/history/status?waiting=1")
+    assert r.headers.get("HX-Refresh") == "true"

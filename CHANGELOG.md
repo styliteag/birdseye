@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   type, shows each object's versions, and restores a single policy or group
   (`PUT`, or `POST` when it was deleted) after an access preview; a policy
   whose groups or posture checks are gone is not restored.
+- History page: changes are listed field by field (`rules › web › ports:
+  + 8443`, old → new, IDs as names) instead of raw JSON, and a notice shows
+  when the configuration changed after the newest snapshot (or a snapshot
+  is running), reloading the page once the new snapshot is there.
 - Config history follows changes: the audit-event forwarder starts a
   snapshot ~1 min after the last configuration change (`HISTORY_ON_CHANGE`,
   `HISTORY_SETTLE_SECONDS`, `HISTORY_TRIGGER_INCLUDE/EXCLUDE`), and a run

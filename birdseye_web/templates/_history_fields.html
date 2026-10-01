@@ -1,5 +1,24 @@
-<table class="list fields">
-  {% for f, a, b in fields %}
-  <tr><td class="muted small">{{ f }}</td><td class="loss small"><code>{{ a|tojson if a is not none else '–' }}</code></td><td class="gain small"><code>{{ b|tojson if b is not none else '–' }}</code></td></tr>
+{% macro val(v) -%}
+  {%- if v is none or v == '' %}<span class="muted">–</span>
+  {%- elif v is sameas true %}yes{% elif v is sameas false %}no
+  {%- elif v is string %}{{ names.get(v, v) }}
+  {%- elif v is mapping %}{{ v.get('name') or v.get('id') or (v|tojson) }}
+  {%- elif v is iterable %}{% for x in v %}{{ val(x) }}{% if not loop.last %}, {% endif %}{% else %}<span class="muted">none</span>{% endfor %}
+  {%- else %}{{ v }}{% endif -%}
+{%- endmacro %}
+<ul class="changes">
+{% for f, a, b in fields %}
+  {% for c in flat_changes(f, a, b) %}
+  <li>
+    <span class="muted">{{ c.path|join(' › ') }}</span>
+    {% if c.kind == 'list' %}
+      {% for x in c.removed %}<span class="pill loss">− {{ val(x) }}</span>{% endfor %}
+      {% for x in c.added %}<span class="pill gain">+ {{ val(x) }}</span>{% endfor %}
+      {% if c.kept %}<span class="muted small">(unchanged: {{ val(c.kept) }})</span>{% endif %}
+    {% elif c.kind == 'added' %}<span class="pill gain">added</span>
+    {% elif c.kind == 'removed' %}<span class="pill loss">removed</span>
+    {% else %}<span class="old">{{ val(c.old) }}</span> → <span class="new">{{ val(c.new) }}</span>{% endif %}
+  </li>
   {% endfor %}
-</table>
+{% endfor %}
+</ul>

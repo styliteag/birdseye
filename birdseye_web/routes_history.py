@@ -14,6 +14,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Path, Request
 from fastapi.responses import RedirectResponse, Response
 
+from birdseye_web.audit import parse_event
 from birdseye_web.context import (
     OBJECT_ID,
     TEMPLATES,
@@ -32,10 +33,13 @@ from birdseye_web.history import (
     diff_snapshots,
     find_version,
     list_snapshots,
+    load_kind,
     normalize,
     object_timeline,
 )
-from birdseye_web.models import Snapshot
+from birdseye_web.history_view import SnapshotStatus, flat_changes, snapshot_status
+from birdseye_web.jobs import load_jobs
+from birdseye_web.models import Snapshot, parse_time
 from birdseye_web.nbapi import NetBirdAPI, NetBirdError
 from birdseye_web.restore import RESTORABLE, plan_restore
 from birdseye_web.sessions import Session
@@ -55,6 +59,44 @@ EDITORS = {
     "setup_keys": "/setup-keys/",
     "networks": "/networks/",
 }
+
+
+TEMPLATES.env.globals["flat_changes"] = flat_changes
+NAMED = ("groups", "peers", "posture_checks", "users", "networks", "setup_keys", "policies")
+# audit codes that do not change the configuration (same default as the forwarder)
+NOISE = "login"
+POLL_S = 10
+
+
+def _names(base: FsPath, stamps: list[str], snap: Snapshot) -> dict[str, str]:
+    """ID -> name from the compared snapshots, then the live account."""
+    names: dict[str, str] = {}
+    for stamp in stamps:
+        for slug in NAMED:
+            for obj in load_kind(base, stamp, slug):
+                label = obj.get("name") or obj.get("email")
+                if obj.get("id") and label:
+                    names.setdefault(str(obj["id"]), str(label))
+    return {**names, **snap.names()}
+
+
+async def _status(api: NetBirdAPI, base: FsPath) -> SnapshotStatus:
+    try:
+        raw = await api.get("events/audit") or []
+    except NetBirdError:
+        raw = []
+    events = (parse_event(e) for e in raw)
+    changes = [e.timestamp for e in events if e.timestamp and NOISE not in e.activity_code]
+    snaps = list_snapshots(base)
+    view = load_jobs(base.parent)
+    job = next((j for j in view.jobs if j.key == "history"), None)
+    return snapshot_status(
+        changes,
+        snaps[0].at if snaps else None,
+        job_enabled=bool(job and job.enabled),
+        running=bool(job and job.status == "running"),
+        last_run=parse_time(job.started) if job else None,
+    )
 
 
 def history_base(request: Request) -> FsPath | None:
@@ -86,6 +128,7 @@ async def history_page(
     request: Request,
     s: Session = Depends(current_session),
     api: NetBirdAPI = Depends(user_api),
+    snap: Snapshot = Depends(snapshot),
 ) -> Response:
     base = await _gate(request, s, api)
     if isinstance(base, Response):
@@ -108,10 +151,31 @@ async def history_page(
             "old": old,
             "new": new,
             "diffs": diffs,
+            "names": _names(base, [old, new], snap) if diffs else {},
+            "status": await _status(api, base),
+            "poll_s": POLL_S,
             "labels": LABELS,
             "editors": EDITORS,
             "restorable": RESTORABLE,
         },
+    )
+
+
+@router.get("/status")
+async def history_status(
+    request: Request,
+    s: Session = Depends(current_session),
+    api: NetBirdAPI = Depends(user_api),
+) -> Response:
+    """Polled while a snapshot is due; reloads the page once it is there."""
+    base = await _gate(request, s, api)
+    if isinstance(base, Response):
+        return base
+    status = await _status(api, base)
+    if request.query_params.get("waiting") and status.state == "current":
+        return Response(status_code=200, headers={"HX-Refresh": "true"})
+    return TEMPLATES.TemplateResponse(
+        request, "_history_status.html", {"status": status, "poll_s": POLL_S}
     )
 
 
@@ -121,6 +185,7 @@ async def object_history(
     oid: Oid,
     s: Session = Depends(current_session),
     api: NetBirdAPI = Depends(user_api),
+    snap: Snapshot = Depends(snapshot),
 ) -> Response:
     base = await _gate(request, s, api)
     if isinstance(base, Response):
@@ -133,6 +198,9 @@ async def object_history(
             "session": s,
             "oid": oid,
             "timeline": timeline,
+            "names": _names(base, [v.stamp for v in timeline], snap),
+            "status": await _status(api, base),
+            "poll_s": POLL_S,
             "labels": LABELS,
             "editors": EDITORS,
             "restorable": RESTORABLE,
