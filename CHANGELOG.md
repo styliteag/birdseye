@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+-
+
+## [0.8.1] - 2026-10-01
+
+### Added
 - birdseye-web **user editor** (`/users`): change a user's role, block state
   and auto-assigned groups (`PUT /users/{id}`, IdP-issued groups carried
   over), with the live access preview. Shows each of the user's devices whose
