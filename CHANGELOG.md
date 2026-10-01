@@ -7,8 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
--
+### Fixed
+- birdseye-web: the Jobs page's run history and the audit log's from/to date
+  filter use the viewer's time zone too (the filter counts local days, not
+  UTC days); a history version's tab title no longer shows a UTC stamp.
 
 ## [0.9.1] - 2026-10-01
 
@@ -26,8 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   elsewhere show up after about 15–75 s. The History notice polls every 5 s.
 - birdseye-web shows times in the viewer's own time zone (audit log, config
   history, snapshot notice, setup key expiry, Jobs page) instead of UTC. The
-  UTC time stays as tooltip and as the text without JavaScript. The audit
-  log's from/to date filter counts the viewer's days, not UTC days.
+  UTC time stays as tooltip and as the text without JavaScript.
 
 ## [0.9.0] - 2026-10-01
 
