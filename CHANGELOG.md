@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+-
+
+## [0.9.0] - 2026-10-01
+
+### Added
 - birdseye-web **peers page** (`/peers`): search and filter by online state,
   user, group, OS and expired login, sorted by last seen. Peer editor: name,
   SSH, login expiration and approval (`PUT /peers/{id}` from a fresh GET),
