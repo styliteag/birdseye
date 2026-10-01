@@ -429,3 +429,22 @@ def test_group_preview_without_propagation_shows_no_gain(client, nb):
         headers={"X-CSRF-Token": token},
     )
     assert "gained" not in r.text
+
+
+def test_new_group_prefills_peer(client):
+    login(client)
+    html = client.get("/groups/new?peer=c1&peer=nope").text
+    assert re.search(r'name="peers" value="c1" checked', html)
+    assert 'value="nope"' not in html
+
+
+def test_new_policy_prefills_resource(client, nb):
+    nb.data["networks"] = [{"id": "n1", "name": "net"}]
+    nb.data["networks/n1/resources"] = [
+        {"id": "res1", "name": "nas", "address": "10.0.0.5/32", "type": "host"}
+    ]
+    nb.data["networks/n1/routers"] = []
+    login(client)
+    html = client.get("/policies/new?dst_resource=res1").text
+    assert '<option value="host:res1" selected>' in html
+    assert 'value="Access to nas"' in html

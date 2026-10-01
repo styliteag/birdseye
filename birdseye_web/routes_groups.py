@@ -123,7 +123,9 @@ def _editor(request, s, snap, group=None, error="", name="", selected=None, stat
 async def group_new(
     request: Request, s: Session = Depends(current_session), snap: Snapshot = Depends(snapshot)
 ) -> Response:
-    return _editor(request, s, snap)
+    """`?peer=<id>` (repeatable) preselects peers, e.g. from the Anomalies page."""
+    peers = [p for p in request.query_params.getlist("peer") if p in snap.peers]
+    return _editor(request, s, snap, selected=peers)
 
 
 @router.get("/{gid}")

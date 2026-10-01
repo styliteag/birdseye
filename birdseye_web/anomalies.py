@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterator
 from dataclasses import dataclass
+from urllib.parse import urlencode
 
 from birdseye_web.access import group_members
 from birdseye_web.drift import peer_drift
@@ -187,8 +188,15 @@ def _no_router(snap: Snapshot) -> Iterator[Finding]:
 def _only_all(snap: Snapshot) -> Iterator[Finding]:
     all_ids = {g.id for g in snap.groups.values() if g.is_all}
     for p in sorted(snap.peers.values(), key=lambda p: p.name.lower()):
-        if not (p.group_ids - all_ids):
-            yield Finding("only-all", "info", f"{p.name} is only in “All”")
+        if p.group_ids - all_ids:
+            continue
+        # A user's device is fixed through the user's auto-groups; others get a group.
+        u = snap.users.get(p.user_id)
+        if u and not u.is_service_user:
+            link = f"/users/{u.id}"
+        else:
+            link = "/groups/new?" + urlencode({"peer": p.id})
+        yield Finding("only-all", "info", f"{p.name} is only in “All”", link=link)
 
 
 def _targeted_resources(snap: Snapshot) -> frozenset[str]:
@@ -211,7 +219,12 @@ def _unreachable_resources(snap: Snapshot) -> Iterator[Finding]:
     targeted = _targeted_resources(snap)
     for res in sorted(snap.resources.values(), key=lambda r: r.name.lower()):
         if res.enabled and res.id not in targeted:
-            yield Finding("unreachable-resource", "warning", f"{res.name} ({res.address})")
+            yield Finding(
+                "unreachable-resource",
+                "warning",
+                f"{res.name} ({res.address})",
+                link="/policies/new?" + urlencode({"dst_resource": res.id}),
+            )
 
 
 def _mixed_groups(snap: Snapshot) -> Iterator[Finding]:

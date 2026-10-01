@@ -202,3 +202,19 @@ def test_peer_in_resource_group_is_mixed_not_unused():
     assert _by(found, "unused-group") == []
     [hit] = _by(found, "mixed-group")
     assert hit.title == "RG" and "mini" in hit.detail
+
+
+def test_only_all_links_to_owner_or_new_group():
+    s = snap(
+        groups=[group("All", peers=["mine", "orphan"])],
+        peers=[peer("mine", ["All"], user="u1"), peer("orphan", ["All"])],
+        users=[user("u1")],
+    )
+    links = {f.title.split(" ")[0]: f.link for f in _by(find_anomalies(s), "only-all")}
+    assert links == {"mine": "/users/u1", "orphan": "/groups/new?peer=orphan"}
+
+
+def test_unreachable_resource_links_to_new_policy():
+    s = snap(groups=[group("RG", resources=["r1"])], resources=[resource("r1", ["RG"])])
+    [hit] = _by(find_anomalies(s), "unreachable-resource")
+    assert hit.link == "/policies/new?dst_resource=r1"

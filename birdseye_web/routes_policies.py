@@ -218,12 +218,18 @@ def _editor(request, s, snap, policy, error="", status=200, pid=""):
 async def policy_new(
     request: Request, s: Session = Depends(current_session), snap: Snapshot = Depends(snapshot)
 ) -> Response:
+    """`?dst_resource=<id>` prefills the destination, e.g. from the Anomalies page."""
+    rule, name = _empty_rule(), ""
+    res = snap.resources.get(request.query_params.get("dst_resource", ""))
+    if res is not None:
+        name = f"Access to {res.name}"
+        rule = {**rule, "name": name, "dst_resource": f"{res.type}:{res.id}"}
     blank = {
-        "name": "",
+        "name": name,
         "description": "",
         "enabled": True,
         "source_posture_checks": [],
-        "rules": [_empty_rule()],
+        "rules": [rule],
     }
     return _editor(request, s, snap, blank)
 

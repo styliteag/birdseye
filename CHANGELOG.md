@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Anomalies: “Device groups differ from the user's default” now links to the
   user editor. The check and the editor share one drift module.
+- Anomalies: more findings link to the editor that fixes them. A peer only
+  in “All” opens its user's editor (or a new group with the peer preselected
+  when it has no user); a resource no policy reaches opens a new policy with
+  that resource as destination (`/groups/new?peer=…`,
+  `/policies/new?dst_resource=…`).
 
 ## [0.8.0] - 2026-09-28
 
