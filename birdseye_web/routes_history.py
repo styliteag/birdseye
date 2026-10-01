@@ -235,6 +235,7 @@ async def version_page(
             "oid": oid,
             "slug": slug,
             "label": LABELS[slug],
+            "kind": SINGULAR.get(slug, "object"),
             "obj": normalize(slug, raw),
             "plan": plan,
             "exists": oid in snap.policies or oid in snap.groups,

@@ -68,7 +68,7 @@ def test_object_timeline(client):
 def test_restore_preview_and_put(client, nb):
     login(client)
     page = client.get(f"/history/{OLD}/p1")
-    assert page.status_code == 200 and "Replaces the current" in page.text
+    assert page.status_code == 200 and "Replaces the current policy with" in page.text
     token = csrf(client, f"/history/{OLD}/p1")
     r = client.post(f"/history/{OLD}/p1/preview", headers={"X-CSRF-Token": token})
     assert "gained" in r.text and nb.writes == []
