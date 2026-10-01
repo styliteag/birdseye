@@ -24,7 +24,8 @@ Two Docker images, run next to your existing NetBird `docker compose` stack:
   <img alt="birdseye-web access matrix" src="docs/screenshots/matrix-light.png">
 </picture>
 
-> Self-hosted NetBird only, not NetBird Cloud. Uses the unofficial
+> Self-hosted NetBird only, not NetBird Cloud (yet — see
+> [NetBird Cloud](#netbird-cloud)). Uses the unofficial
 > [`netbird`](https://pypi.org/project/netbird/) PyPI SDK
 > (community-maintained, not affiliated with NetBird).
 
@@ -613,6 +614,35 @@ Docker Hub and GHCR.
   **cloud-only**; the audit-event endpoint is the only event stream
   available on self-hosted NetBird. Tracking upstream issue:
   [netbirdio/netbird#3935](https://github.com/netbirdio/netbird/issues/3935).
+
+### NetBird Cloud
+
+birdseye-web does not run against NetBird Cloud today. The API calls
+themselves would very likely work — Cloud serves the same Public API —
+but sign-in does not: birdseye-web logs in as NetBird's
+`netbird-dashboard` client, and its callback URL has to be registered
+with that client. On a self-hosted instance you can do that; in Cloud the
+identity provider belongs to NetBird.
+
+Two ways it could be extended, neither built yet:
+
+- **Personal access token sign-in** — each user pastes their own NetBird
+  PAT instead of going through the IdP, and the API is called with it
+  (`Authorization: Token …`). Calls still run as that user, so NetBird's
+  role checks and audit log keep working. Downsides: PATs are long-lived,
+  and users have to create one first.
+- **Admin version with an API key** — an instance configured with one
+  service-user key, for a small admin team behind its
+  own access control. Simpler to set up, but every change shows up in
+  NetBird's audit log under the service user, and anyone who can reach the
+  UI acts with that key's rights. This is a deliberate departure from the
+  current design and would be opt-in.
+
+The `birdseye` forwarder and the API-only jobs (audit forwarding, config
+export, config history, maintenance) already use API keys and should
+need little or no change for Cloud; the standby clone and volume backups
+do not apply there. None of this has been tested against Cloud. If you
+need it, open an issue.
 
 ## License
 
