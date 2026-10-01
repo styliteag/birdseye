@@ -114,9 +114,13 @@ def target_info(e: AuditEvent, snap: Snapshot) -> tuple[str, str]:
     if not e.target_id:
         return "", ""
     kind, url = _target_kind(e.activity_code)
-    name = _lookup(snap, kind, e.target_id) if kind else None
+    oid = e.target_id
+    if kind == "peer" and oid not in snap.peers:
+        # some peer events (e.g. peer.ssh.enable) carry the peer's IP, not its ID
+        oid = next((p.id for p in snap.peers.values() if p.ip and p.ip == oid), oid)
+    name = _lookup(snap, kind, oid) if kind else None
     if name is not None:
-        return name, f"{url}{e.target_id}"
+        return name, f"{url}{oid}"
     meta_name = e.meta_get("name")
     if meta_name:
         return f"{meta_name} (deleted)", ""

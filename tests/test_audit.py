@@ -131,3 +131,9 @@ def test_date_filter_uses_viewers_time_zone():
     q = AuditQuery.from_params({"tz": "-120"})
     assert q.tz_offset == -120
     assert AuditQuery.from_params({"tz": "9999"}).tz_offset == 0  # out of range
+
+
+def test_peer_target_given_as_ip_resolves():
+    # NetBird logs some peer events (e.g. peer.ssh.enable) with the peer's IP as target
+    e = parse_event(_ev(1, "peer.ssh.enable", "100.64.0.1", meta={"name": "p1"}))
+    assert target_info(e, SNAP) == ("p1", "/peers/p1")
