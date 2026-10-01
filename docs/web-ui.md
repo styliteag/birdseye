@@ -12,7 +12,7 @@ It ships as its own image (`styliteag/birdseye-web`), separate from the
 
 | Page | What it does |
 |---|---|
-| **Matrix** | Who may access whom, as a grid. Five views: Group × Group, Peer × Peer, Group × Resource, Peer × Resource, User × Destination. Filter by name, protocol, port; hide “All”; show only posture-gated access. Click a cell to see *which* policy allows it. |
+| **Matrix** | Who may access whom, as a grid. Five views: Group × Group, Peer × Peer, Group × Resource, Peer × Resource, User × Destination. Filter by name, protocol, port; hide “All”; in Group × Group also show unused groups; show only posture-gated access. Click a cell to see *which* policy allows it. |
 | **Matrix editing** | In the group views: click a filled cell to remove a group from the rule, disable or delete the policy; click an empty cell to create an allow policy. Every action shows the gained/lost access first and only writes on *Confirm*. |
 | **Reachability** | “Can peer X reach Y on tcp/22?” with the policies and groups that make it so. |
 | **Groups** | Create, rename, delete; edit membership with a searchable checklist. Assign users too: the group becomes one of their auto-assigned groups, so their devices join it (existing devices only with NetBird's *group propagation* on). A live panel shows who gains or loses access *before* you save. |

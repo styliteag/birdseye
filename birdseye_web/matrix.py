@@ -52,6 +52,7 @@ class MatrixFilter:
     protocol: str | None = None
     port: int | None = None
     hide_all: bool = False
+    show_unused: bool = False  # group view: also groups without any cell
     only_conditional: bool = False
     max_rows: int = 150
     max_cols: int = 300
@@ -124,9 +125,11 @@ def _assemble(
     snap: Snapshot,
     raw: Mapping[tuple[str, str], tuple[list[Grant], set[str]]],
     flt: MatrixFilter,
+    extra: frozenset[str] = frozenset(),
 ) -> Matrix:
-    row_keys = {r for r, _ in raw}
-    col_keys = {c for _, c in raw}
+    """`extra` keys are shown as row and column even without a cell."""
+    row_keys = {r for r, _ in raw} | extra
+    col_keys = {c for _, c in raw} | extra
     sort = lambda a: (a.label.lower(), a.key)  # noqa: E731
     rows = sorted(
         (a for a in map(lambda k: axis(snap, k), row_keys) if _matches(a, flt.row_query)), key=sort
@@ -142,8 +145,8 @@ def _assemble(
     used_cols = {c for _, c in live}
     cells = {k: Cell(tuple(dict.fromkeys(gs)), frozenset(via)) for k, (gs, via) in live.items()}
     return Matrix(
-        rows=tuple(a for a in rows if a.key in used_rows),
-        cols=tuple(a for a in cols if a.key in used_cols),
+        rows=tuple(a for a in rows if a.key in used_rows or a.key in extra),
+        cols=tuple(a for a in cols if a.key in used_cols or a.key in extra),
         cells=cells,
         truncated=truncated,
     )
@@ -167,7 +170,11 @@ def group_matrix(snap: Snapshot, grant_list, flt: MatrixFilter = NO_FILTER) -> M
                 entry = raw[(s, d)]
                 entry[0].append(g)
                 entry[1].add(s)
-    return _assemble(snap, raw, flt)
+    extra = frozenset()
+    if flt.show_unused:
+        hidden = _all_group_ids(snap) if flt.hide_all else frozenset()
+        extra = frozenset(f"g:{gid}" for gid in snap.groups if gid not in hidden)
+    return _assemble(snap, raw, flt, extra)
 
 
 def _edge_view(snap, grant_list, flt, row_of, dst_kind: str | None = None) -> Matrix:

@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 
 from birdseye_web.access import grants
@@ -8,6 +10,7 @@ from birdseye_web.matrix import (
     resource_matrix,
     user_matrix,
 )
+from birdseye_web.models import parse_group
 from tests.factory import group, peer, policy, resource, rule, snap, user
 
 
@@ -109,3 +112,27 @@ def test_rows_sorted_by_label(s):
     m = group_matrix(s, grants(s))
     labels = [a.label for a in m.rows]
     assert labels == sorted(labels, key=str.lower)
+
+
+def _with_unused(s):
+    return replace(s, groups={**s.groups, "U": parse_group(group("U", "Unused", peers=["a1"]))})
+
+
+def test_group_matrix_hides_unused_groups_by_default(s):
+    m = group_matrix(_with_unused(s), grants(s))
+    assert "g:U" not in _keys(m.rows) + _keys(m.cols)
+
+
+def test_group_matrix_show_unused_adds_every_group_both_ways(s):
+    s2 = _with_unused(s)
+    m = group_matrix(s2, grants(s2), MatrixFilter(show_unused=True))
+    assert "g:U" in _keys(m.rows) and "g:U" in _keys(m.cols)
+    assert "g:RG" in _keys(m.rows)  # only a destination so far, now also a row
+    assert m.cell("g:U", "g:A") is None
+
+
+def test_group_matrix_show_unused_respects_hide_all_and_queries(s):
+    s2 = _with_unused(s)
+    m = group_matrix(s2, grants(s2), MatrixFilter(show_unused=True, hide_all=True, row_query="unu"))
+    assert _keys(m.rows) == ["g:U"]
+    assert "g:All" not in _keys(m.cols)

@@ -63,6 +63,7 @@ def parse_filter(request: Request) -> tuple[View, MatrixFilter]:
         protocol=proto if proto in PROTOCOLS and proto else None,
         port=_int(q.get("port")),
         hide_all=q.get("hide_all") == "1",
+        show_unused=view.key == "groups" and q.get("show_unused") == "1",
         only_conditional=q.get("cond") == "1",
         max_rows=min(_int(q.get("max")) or 150, 500),
     )

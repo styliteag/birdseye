@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when it has no user); a resource no policy reaches opens a new policy with
   that resource as destination (`/groups/new?peer=…`,
   `/policies/new?dst_resource=…`).
+- Matrix, Group × Group: **Show unused groups** option. Lists every group as
+  row and column, also those no rule uses yet (respects “Hide All” and the
+  row/column filters), so you can click an empty cell to give them access.
 
 ## [0.8.0] - 2026-09-28
 

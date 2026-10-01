@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from birdseye_web.app import create_app
+from tests.factory import group
 from tests.fakes import SETTINGS, FakeNetBird, FakeOIDC
 
 
@@ -448,3 +449,12 @@ def test_new_policy_prefills_resource(client, nb):
     html = client.get("/policies/new?dst_resource=res1").text
     assert '<option value="host:res1" selected>' in html
     assert 'value="Access to nas"' in html
+
+
+def test_matrix_show_unused_option(client, nb):
+    nb.data["groups"] = [*nb.data["groups"], group("U", "Lonely")]
+    login(client)
+    assert "Lonely" not in client.get("/matrix").text
+    html = client.get("/matrix?view=groups&show_unused=1").text
+    assert "Lonely" in html and 'name="show_unused" value="1" checked' in html
+    assert 'name="show_unused"' not in client.get("/matrix?view=peers").text
