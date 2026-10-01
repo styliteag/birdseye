@@ -33,8 +33,8 @@
       <td><strong>{{ j.label }}</strong>{% if not j.enabled %}<div class="muted small">{{ j.reason }}</div>{% endif %}</td>
       <td><code>{{ j.schedule or '–' }}</code></td>
       <td>
-        {% if j.status == 'running' %}running since {{ j.started[11:19] }} UTC
-        {% elif j.finished %}{{ j.finished[:10] }} {{ j.finished[11:19] }} UTC
+        {% if j.status == 'running' %}running since {{ j.started|when('time') }}
+        {% elif j.finished %}{{ j.finished|when }}
           <div class="muted small">{{ j.trigger }}{% if j.mode == 'dry-run' %} · dry run{% endif %}</div>
         {% else %}<span class="muted">–</span>{% endif %}
       </td>

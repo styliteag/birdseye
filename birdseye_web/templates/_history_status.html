@@ -3,13 +3,13 @@
   {% if status.state == 'running' %}
     ⏳ A snapshot is being taken right now. This page reloads when it is ready.
   {% else %}
-    ⏳ The configuration changed at {{ status.changed_at.strftime('%H:%M:%S') }} UTC, after the newest snapshot.
+    ⏳ The configuration changed at {{ status.changed_at|when('time') }}, after the newest snapshot.
     A new snapshot is taken about a minute after the last change – usually within 1–2 minutes. This page reloads when it is ready.
   {% endif %}
 </div>
 {% elif status.state == 'unscheduled' %}
 <div class="flash info">
-  The configuration changed at {{ status.changed_at.strftime('%H:%M:%S') }} UTC, after the newest snapshot,
+  The configuration changed at {{ status.changed_at|when('time') }}, after the newest snapshot,
   but the snapshot job is not scheduled in the birdseye container (<code>CRON_CONFIG_HISTORY</code>), so it will not appear here on its own.
 </div>
 {% endif %}

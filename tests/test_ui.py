@@ -39,3 +39,17 @@ def test_cell_badges(services, short, cls):
 def test_conditional_and_deny_classes():
     assert cell_class(_cell(TCP22, conditional=("pc",))) == "c-ports c-cond"
     assert cell_class(_cell(TCP22, action="drop")) == "c-deny"
+
+
+def test_when_renders_utc_time_tag_for_local_conversion():
+    from datetime import UTC, datetime
+
+    from birdseye_web.ui import when
+
+    dt = datetime(2026, 10, 1, 18, 15, tzinfo=UTC)
+    html = str(when(dt, "time"))
+    assert html == '<time datetime="2026-10-01T18:15:00Z" data-fmt="time">18:15:00 UTC</time>'
+    assert 'datetime="2026-10-01T18:15:00Z"' in str(when("2026-10-01T18:15:00+00:00"))
+    assert 'datetime="2026-10-01T18:15:00Z"' in str(when("20261001T181500Z"))
+    assert ">2026-10-01 UTC<" in str(when(dt, "date"))
+    assert str(when(None)) == "" and str(when("garbage")) == "garbage"

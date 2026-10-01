@@ -7,7 +7,7 @@
 {% include "_history_status.html" %}
 {% for v in timeline %}
 <section class="card anomaly">
-  <strong>{{ v.stamp[:4] }}-{{ v.stamp[4:6] }}-{{ v.stamp[6:8] }} {{ v.stamp[9:11] }}:{{ v.stamp[11:13] }}:{{ v.stamp[13:15] }} UTC</strong>
+  <strong>{{ v.stamp|when }}</strong>
   <span class="pill {{ 'loss' if v.event == 'deleted' else '' }}">{{ v.event }}</span>
   {% if v.event != 'deleted' and v.slug in restorable %}<a class="small" href="/history/{{ v.stamp }}/{{ oid }}">view / restore this version</a>{% endif %}
   {% if v.fields %}{% with fields = v.fields %}{% include "_history_fields.html" %}{% endwith %}{% endif %}

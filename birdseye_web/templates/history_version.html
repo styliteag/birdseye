@@ -2,7 +2,7 @@
 {% block title %}{{ obj.name or oid }} at {{ stamp }}{% endblock %}
 {% block content %}
 <p class="crumbs"><a href="/history">Config history</a> / <a href="/history/object/{{ oid }}">{{ obj.name or oid }}</a> /</p>
-<h1>{{ obj.name or oid }} <span class="count">{{ label }} · {{ stamp }}</span></h1>
+<h1>{{ obj.name or oid }} <span class="count">{{ label }} · {{ stamp|when }}</span></h1>
 <div class="split">
   <section class="card">
     <h3>This version</h3>

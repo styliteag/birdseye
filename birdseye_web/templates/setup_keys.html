@@ -36,7 +36,7 @@
     <td><span class="pill key-{{ states[k.id] }}">{{ states[k.id] }}</span></td>
     <td>{{ k.type }}</td>
     <td class="num">{{ k.used_times }}{% if k.reusable and k.usage_limit %} / {{ k.usage_limit }}{% endif %}</td>
-    <td class="small">{{ k.expires.strftime('%Y-%m-%d') if k.expires else 'never' }}</td>
+    <td class="small">{{ k.expires|when('date') if k.expires else 'never' }}</td>
     <td class="small">{{ k.last_used|ago or 'never' }}</td>
     <td>{% for gid in k.auto_groups|sort %}<span class="pill">{{ snap.groups[gid].name if gid in snap.groups else gid }}</span> {% else %}<span class="muted">none</span>{% endfor %}</td>
   </tr>

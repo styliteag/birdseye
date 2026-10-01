@@ -210,4 +210,24 @@
     var form = document.getElementById("bulk-form");
     if (form) refreshBulk(form);
   });
+  // --- times: UTC from the server, shown in the viewer's time zone -----------------
+  var TIME_FORMATS = {
+    time: { hour: "2-digit", minute: "2-digit", second: "2-digit" },
+    date: { year: "numeric", month: "2-digit", day: "2-digit" },
+    datetime: { year: "numeric", month: "2-digit", day: "2-digit",
+                hour: "2-digit", minute: "2-digit", second: "2-digit" }
+  };
+  function localizeTimes(root) {
+    root.querySelectorAll("time[datetime][data-fmt], option[data-time]").forEach(function (el) {
+      var iso = el.getAttribute("datetime") || el.getAttribute("data-time");
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return;
+      var fmt = TIME_FORMATS[el.getAttribute("data-fmt")] || TIME_FORMATS.datetime;
+      el.title = iso.replace("T", " ").replace("Z", " UTC");
+      el.textContent = d.toLocaleString(undefined, fmt);
+    });
+  }
+  document.addEventListener("DOMContentLoaded", function () { localizeTimes(document); });
+  // after every swap, whole document: outerHTML swaps replace the event target
+  document.addEventListener("htmx:afterSettle", function () { localizeTimes(document); });
 })();

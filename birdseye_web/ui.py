@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from markupsafe import Markup, escape
+
 from birdseye_web.matrix import Cell
 
 # Axis/ref key prefix -> editor URL prefix (see matrix.ref_key / axis keys).
@@ -59,6 +61,38 @@ def ago(when: datetime | None, now: datetime | None = None) -> str:
     return "just now"
 
 
+_FORMATS = {"datetime": "%Y-%m-%d %H:%M:%S", "time": "%H:%M:%S", "date": "%Y-%m-%d"}
+
+
+def _as_datetime(value: object) -> datetime | None:
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=UTC)
+    if not isinstance(value, str) or not value:
+        return None
+    for parse in (
+        lambda v: datetime.strptime(v, "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC),
+        lambda v: datetime.fromisoformat(v.replace("Z", "+00:00")),
+    ):
+        try:
+            dt = parse(value)
+        except ValueError:
+            continue
+        return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
+    return None
+
+
+def when(value: object, fmt: str = "datetime") -> Markup:
+    """A UTC timestamp as `<time>`; app.js rewrites it into the viewer's own
+    time zone. The UTC text stays as the fallback without JavaScript."""
+    dt = _as_datetime(value)
+    if dt is None:
+        return Markup("") if not value else escape(str(value))
+    utc = dt.astimezone(UTC)
+    iso = utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+    text = utc.strftime(_FORMATS.get(fmt, _FORMATS["datetime"]))
+    return Markup('<time datetime="{}" data-fmt="{}">{} UTC</time>').format(iso, fmt, text)
+
+
 def obj_link(key: str) -> str:
     """Editor URL for an axis key (`p:<id>`) or `kind:<id>` (`peer:<id>`)."""
     kind, _, oid = key.partition(":")
@@ -74,5 +108,6 @@ def register(env) -> None:
     env.filters["cell_short"] = cell_short
     env.filters["cell_class"] = cell_class
     env.filters["ago"] = ago
+    env.filters["when"] = when
     env.filters["ref_link"] = ref_link
     env.globals["obj_link"] = obj_link

@@ -6,7 +6,7 @@
 <h1>{{ key.name }} <span class="pill key-{{ state }}">{{ state }}</span></h1>
 <p class="muted small">{{ key.type }}{% if key.ephemeral %} · ephemeral{% endif %}
   · used {{ key.used_times }}{% if key.reusable and key.usage_limit %} of {{ key.usage_limit }}{% endif %} time(s)
-  · expires {{ key.expires.strftime('%Y-%m-%d %H:%M') ~ ' UTC' if key.expires else 'never' }}
+  · expires {{ key.expires|when if key.expires else 'never' }}
   · last used {{ key.last_used|ago or 'never' }}
   · <a href="/audit?target={{ key.id }}">History</a></p>
 {% if error %}<div class="flash err">{{ error }}</div>{% endif %}
