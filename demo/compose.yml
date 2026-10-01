@@ -1,0 +1,125 @@
+# Local NetBird + birdseye demo, for tests and screenshots.
+# Start with ./up.sh, stop with ./down.sh (wipes everything).
+#
+# One URL for browser and containers: http://netbird.localhost:58080
+# (macOS resolves *.localhost itself; containers get it via host-gateway).
+
+x-netbird-host: &nbhost
+  extra_hosts:
+    - "netbird.localhost:host-gateway"
+
+x-logging: &logging
+  logging:
+    driver: "json-file"
+    options: { max-size: "20m", max-file: "2" }
+
+services:
+  traefik:
+    image: traefik:v3.6
+    container_name: demo-traefik
+    restart: unless-stopped
+    networks: [demo]
+    command:
+      - "--log.level=INFO"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=birdseye-demo"
+      - "--entrypoints.web.address=:58080"
+      - "--entrypoints.web.transport.respondingTimeouts.readTimeout=0"
+      - "--entrypoints.web.transport.respondingTimeouts.writeTimeout=0"
+      - "--entrypoints.web.transport.respondingTimeouts.idleTimeout=0"
+      - "--serverstransport.forwardingtimeouts.responseheadertimeout=0s"
+      - "--serverstransport.forwardingtimeouts.idleconntimeout=0s"
+    ports:
+      - "58080:58080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    <<: *logging
+
+  dashboard:
+    image: netbirdio/dashboard:latest
+    container_name: demo-netbird-dashboard
+    restart: unless-stopped
+    networks: [demo]
+    env_file: [./dashboard.env]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.nb-dashboard.rule=Host(`netbird.localhost`)
+      - traefik.http.routers.nb-dashboard.entrypoints=web
+      - traefik.http.routers.nb-dashboard.priority=1
+      - traefik.http.routers.nb-dashboard.service=nb-dashboard
+      - traefik.http.services.nb-dashboard.loadbalancer.server.port=80
+    <<: *logging
+
+  # Combined server (Management + Signal + Relay + STUN)
+  netbird-server:
+    image: netbirdio/netbird-server:latest
+    container_name: demo-netbird-server
+    restart: unless-stopped
+    networks: [demo]
+    ports:
+      - "3478:3478/udp"
+    environment:
+      NB_SETUP_PAT_ENABLED: "true"   # POST /api/setup returns a PAT (seed.py)
+    volumes:
+      - ./data/netbird:/var/lib/netbird
+      - ./config.yaml:/etc/netbird/config.yaml
+    command: ["--config", "/etc/netbird/config.yaml"]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.nb-grpc.rule=Host(`netbird.localhost`) && (PathPrefix(`/signalexchange.SignalExchange/`) || PathPrefix(`/management.ManagementService/`))
+      - traefik.http.routers.nb-grpc.entrypoints=web
+      - traefik.http.routers.nb-grpc.service=nb-server-h2c
+      - traefik.http.routers.nb-grpc.priority=100
+      - traefik.http.routers.nb-backend.rule=Host(`netbird.localhost`) && (PathPrefix(`/relay`) || PathPrefix(`/ws-proxy/`) || PathPrefix(`/api`) || PathPrefix(`/oauth2`))
+      - traefik.http.routers.nb-backend.entrypoints=web
+      - traefik.http.routers.nb-backend.service=nb-server
+      - traefik.http.routers.nb-backend.priority=100
+      - traefik.http.services.nb-server.loadbalancer.server.port=80
+      - traefik.http.services.nb-server-h2c.loadbalancer.server.port=80
+      - traefik.http.services.nb-server-h2c.loadbalancer.server.scheme=h2c
+    <<: *logging
+
+  birdseye:
+    build: { context: .., dockerfile: docker/Dockerfile, args: { VERSION: "${DEMO_VERSION:-demo}", VCS_REF: "${DEMO_REVISION:-}" } }
+    image: birdseye:demo
+    container_name: demo-birdseye
+    restart: unless-stopped
+    networks: [demo]
+    <<: [*nbhost, *logging]
+    env_file: [./secrets.env]
+    environment:
+      NB_URL: http://netbird.localhost:58080
+      TZ: Europe/Berlin
+      POLL_INTERVAL: "20"
+      CRON_CLEANUP_EPHEMERAL: "*/15 * * * *"
+      CRON_CONFIG_HISTORY: "*/30 * * * *"
+      CRON_NETBIRD_MAINTENANCE: ""
+    volumes:
+      - ./data/birdseye:/var/lib/birdseye
+
+  birdseye-web:
+    build: { context: .., dockerfile: docker/web/Dockerfile, args: { VERSION: "${DEMO_VERSION:-demo}", VCS_REF: "${DEMO_REVISION:-}" } }
+    image: birdseye-web:demo
+    container_name: demo-birdseye-web
+    restart: unless-stopped
+    networks: [demo]
+    <<: [*nbhost, *logging]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    env_file: [./web.env]
+    environment:
+      WEB_NB_URL: http://netbird.localhost:58080
+      WEB_BASE_URL: http://localhost:58090
+      WEB_JOBS_DIR: /jobs
+      WEB_ANOMALY_IGNORE: '^Z[0-9]{3}\b'
+    ports:
+      - "58090:8080"
+    volumes:
+      - ./data/birdseye/jobs:/jobs:ro
+      - ./data/birdseye/jobs/requests:/jobs/requests
+
+networks:
+  demo:
+    name: birdseye-demo

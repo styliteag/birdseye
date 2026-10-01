@@ -59,6 +59,7 @@ FastAPI + Jinja + HTMX, own image (`docker/web/Dockerfile`). User docs: `docs/we
 - UI text is English. No inline JS/`hx-on` (strict CSP); behaviour lives in `static/app.js`.
 - **Jobs page:** the web container never runs anything itself. It reads `registry.json`/`state/*.json` from the shared jobs dir and drops request files; `jobrun.py serve` in the birdseye container validates them against its registry and `JOB_TRIGGERS`. Keep that split — no docker socket, no command lines from the web side. New cron jobs go through `add_job <key> …` / `job_off` in `docker/entrypoint.sh`.
 - Run locally: see `docs/web-ui.md` step 3 (`http://localhost:53000/` is a preregistered redirect). Tests: `uv run pytest`.
+- Local demo (own NetBird with demo company, real peers, history) for end-to-end checks and screenshots: `demo/up.sh`, `demo/down.sh`, `demo/shoot.py` — see `demo/README.md`. Keep no All↔All policy in it.
 
 ## Commit style
 
