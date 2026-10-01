@@ -143,3 +143,41 @@ def with_memberships(snap: Snapshot, members: Mapping[str, Iterable[str]]) -> Sn
     for gid, peer_ids in members.items():
         after = with_group_members(after, gid, peer_ids)
     return after
+
+
+def with_peer_groups(snap: Snapshot, peer_id: str, group_ids: Iterable[str]) -> Snapshot:
+    """Snapshot copy with one peer in exactly `group_ids` (known groups only)."""
+    want = frozenset(group_ids)
+    peer = snap.peers[peer_id]
+    after = snap
+    for gid in sorted((peer.group_ids ^ want) & snap.groups.keys()):
+        members = after.groups[gid].peer_ids
+        after = with_group_members(
+            after, gid, members | {peer_id} if gid in want else members - {peer_id}
+        )
+    return after
+
+
+def without_peer(snap: Snapshot, peer_id: str) -> Snapshot:
+    """Snapshot copy after a peer is deleted."""
+    groups = {
+        gid: replace(g, peer_ids=g.peer_ids - {peer_id}) if peer_id in g.peer_ids else g
+        for gid, g in snap.groups.items()
+    }
+    peers = {k: v for k, v in snap.peers.items() if k != peer_id}
+    gone = Ref("peer", peer_id)
+
+    def drop(ref: Ref | None) -> Ref | None:
+        return None if ref == gone else ref
+
+    policies = {
+        pid: replace(
+            pol,
+            rules=tuple(
+                replace(r, source_ref=drop(r.source_ref), destination_ref=drop(r.destination_ref))
+                for r in pol.rules
+            ),
+        )
+        for pid, pol in snap.policies.items()
+    }
+    return replace(snap, peers=peers, groups=groups, policies=policies)

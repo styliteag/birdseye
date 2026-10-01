@@ -25,6 +25,7 @@ ME = {
     "permissions": {
         "modules": {
             "groups": {"create": True, "update": True},
+            "peers": {"read": True, "update": True, "delete": True},
             "policies": {"create": True, "update": True},
             "users": {"update": True},
         }
@@ -63,6 +64,8 @@ class FakeNetBird:
             "accounts": [{"id": "acc", "settings": {"groups_propagation_enabled": True}}],
         }
         self.writes: list[tuple[str, str, Any]] = []
+        # extra fields NetBird adds to a POST response, per path (e.g. a setup key's value)
+        self.post_extra: dict[str, dict[str, Any]] = {}
         self.tokens: list[str] = []
 
     def api(self, token: str) -> FakeAPI:
@@ -88,7 +91,7 @@ class FakeAPI:
 
     async def post(self, path: str, data: Any) -> Any:
         self.nb.writes.append(("POST", path, data))
-        new = {**data, "id": f"new-{len(self.nb.writes)}"}
+        new = {**data, "id": f"new-{len(self.nb.writes)}", **self.nb.post_extra.get(path, {})}
         self.nb.data[path] = [*self.nb.data[path], new]
         return new
 

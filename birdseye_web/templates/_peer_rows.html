@@ -1,0 +1,18 @@
+{% for p in peers %}
+{% set u = snap.users.get(p.user_id) %}
+<tr>
+  <td><span class="dot {{ 'on' if p.connected else 'off' }}" title="{{ 'online' if p.connected else 'offline' }}"></span>
+    <a href="/peers/{{ p.id }}">{{ p.name }}</a>
+    {% if p.login_expired %} <span class="pill sev-warning">login expired</span>{% endif %}
+    {% if p.approval_required %} <span class="pill sev-warning">needs approval</span>{% endif %}
+    {% if p.ssh_enabled %} <span class="pill">ssh</span>{% endif %}</td>
+  <td><code>{{ p.ip }}</code></td>
+  <td>{% if u %}<a href="/users/{{ u.id }}">{{ u.label }}</a>{% else %}<span class="muted">–</span>{% endif %}</td>
+  <td class="small">{{ p.os }}</td>
+  <td class="small">{{ p.version }}</td>
+  <td class="small">{% if p.connected %}online{% else %}{{ p.last_seen|ago or '–' }}{% endif %}</td>
+  <td>{% for gid in p.group_ids|sort %}{% if gid in snap.groups and not snap.groups[gid].is_all %}<span class="pill">{{ snap.groups[gid].name }}</span> {% endif %}{% endfor %}</td>
+</tr>
+{% else %}
+<tr><td colspan="7" class="empty">No peer found.</td></tr>
+{% endfor %}

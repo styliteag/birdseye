@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ key.name }}{% endblock %}
+{% block content %}
+{% set names = snap.names() %}
+<p class="crumbs"><a href="/setup-keys">Setup keys</a> /</p>
+<h1>{{ key.name }} <span class="pill key-{{ state }}">{{ state }}</span></h1>
+<p class="muted small">{{ key.type }}{% if key.ephemeral %} · ephemeral{% endif %}
+  · used {{ key.used_times }}{% if key.reusable and key.usage_limit %} of {{ key.usage_limit }}{% endif %} time(s)
+  · expires {{ key.expires.strftime('%Y-%m-%d %H:%M') ~ ' UTC' if key.expires else 'never' }}
+  · last used {{ key.last_used|ago or 'never' }}
+  · <a href="/audit?target={{ key.id }}">History</a></p>
+{% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+<form class="card narrow-form" method="post" action="/setup-keys/{{ key.id }}">
+  <input type="hidden" name="csrf" value="{{ session.csrf }}">
+  {% if can_update %}<input type="hidden" name="groups_field" value="1">{% endif %}
+  {% for gid in initial_groups %}<input type="hidden" name="groups_initial" value="{{ gid }}">
+  {% endfor %}
+  <fieldset class="picklist" data-picklist>
+    <legend>Auto-assigned groups <span class="muted" data-count></span></legend>
+    <p class="muted small">Peers enrolled with this key from now on join these groups; peers already enrolled keep theirs.</p>
+    {% if other_groups %}<p class="muted small">Also assigned (kept): {% for gid in other_groups %}<span class="pill">{{ names.get(gid, gid) }}</span> {% endfor %}</p>{% endif %}
+    <div class="picklist-tools"><input type="search" placeholder="Filter groups…" data-filter>
+      <label class="check"><input type="checkbox" data-only-selected> selected only</label></div>
+    <div class="picklist-items">
+      {% for g in groups %}
+      <label class="pick" data-text="{{ g.name|lower }}">
+        <input type="checkbox" name="groups" value="{{ g.id }}" {% if g.id in key.auto_groups %}checked{% endif %} {% if not can_update %}disabled{% endif %}>
+        <span class="name">{{ g.name }}</span>
+      </label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  {% if can_update and not key.revoked %}
+  <label class="check"><input type="checkbox" name="revoke" value="1"> Revoke this key (cannot be undone)</label>
+  {% endif %}
+  <div class="actions">
+    {% if can_update %}<button class="primary">Save</button>{% endif %}
+    {% if can_delete and key.revoked %}
+    <button class="danger" formaction="/setup-keys/{{ key.id }}/delete" data-confirm="Delete setup key “{{ key.name }}”?">Delete</button>
+    {% endif %}
+  </div>
+  {% if can_delete and not key.revoked %}<p class="muted small">Only revoked keys can be deleted.</p>{% endif %}
+</form>
+{% endblock %}

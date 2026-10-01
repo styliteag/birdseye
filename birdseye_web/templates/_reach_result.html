@@ -1,6 +1,6 @@
 {% if asked %}
   {% if rows %}
-  <div class="verdict yes">✔ <strong>{{ src_label }}</strong> can reach <strong>{{ dst_label }}</strong>{% if proto %} via {{ proto }}{% endif %}{% if port %} on port {{ port }}{% endif %}</div>
+  <div class="verdict yes">✔ <strong><a href="{{ obj_link(src) }}">{{ src_label }}</a></strong> can reach <strong><a href="{{ obj_link(dst) }}">{{ dst_label }}</a></strong>{% if proto %} via {{ proto }}{% endif %}{% if port %} on port {{ port }}{% endif %}</div>
   <table class="list">
     <thead><tr><th>Policy</th><th>Service</th><th>Source via</th><th>Destination via</th><th>Notes</th></tr></thead>
     <tbody>
@@ -19,6 +19,6 @@
     </tbody>
   </table>
   {% else %}
-  <div class="verdict no">✘ No policy allows <strong>{{ src_label }}</strong> → <strong>{{ dst_label }}</strong>{% if proto %} via {{ proto }}{% endif %}{% if port %} on port {{ port }}{% endif %}.</div>
+  <div class="verdict no">✘ No policy allows <strong><a href="{{ obj_link(src) }}">{{ src_label }}</a></strong> → <strong><a href="{{ obj_link(dst) }}">{{ dst_label }}</a></strong>{% if proto %} via {{ proto }}{% endif %}{% if port %} on port {{ port }}{% endif %}.</div>
   {% endif %}
 {% endif %}

@@ -30,15 +30,11 @@ from birdseye_web.drift import alignment, managed_groups, user_drift
 from birdseye_web.models import Snapshot, User
 from birdseye_web.nbapi import NetBirdAPI, NetBirdError
 from birdseye_web.payloads import ROLES, PayloadError, group_payload, user_payload
+from birdseye_web.peers import editable_groups
 from birdseye_web.sessions import Session
 from birdseye_web.snapshot import load_snapshot
 
 router = APIRouter(prefix="/users")
-
-
-def editable_groups(snap: Snapshot) -> frozenset[str]:
-    """Groups the editor may add or remove; IdP/integration groups are synced."""
-    return frozenset(g.id for g in snap.groups.values() if g.issued == "api" and not g.is_all)
 
 
 def _people(snap: Snapshot) -> list[User]:

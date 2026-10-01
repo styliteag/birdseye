@@ -193,3 +193,82 @@ def user_payload(
         raise PayloadError(f"role {current!r} cannot be changed to {new_role!r} here")
     blocked = bool(fresh.get("is_blocked", False)) if is_blocked is None else is_blocked
     return {"role": new_role, "auto_groups": sorted(set(auto_groups)), "is_blocked": blocked}
+
+
+def peer_payload(
+    fresh: Mapping[str, Any],
+    *,
+    name: str | None = None,
+    ssh_enabled: bool | None = None,
+    login_expiration_enabled: bool | None = None,
+    approved: bool | None = None,
+) -> Json:
+    """Full peer PUT body. NetBird requires every setting on each update;
+    whatever is not given is carried over from a fresh GET. `approved=True`
+    clears `approval_required` (only meaningful where approval is on)."""
+
+    def keep(field: str, value: bool | None) -> bool:
+        return bool(fresh.get(field, False)) if value is None else value
+
+    new_name = str(fresh.get("name") or "") if name is None else name.strip()
+    if not new_name:
+        raise PayloadError("peer name is required")
+    body: Json = {
+        "name": new_name,
+        "ssh_enabled": keep("ssh_enabled", ssh_enabled),
+        "login_expiration_enabled": keep("login_expiration_enabled", login_expiration_enabled),
+        "inactivity_expiration_enabled": keep("inactivity_expiration_enabled", None),
+    }
+    if approved:
+        body["approval_required"] = False
+    return body
+
+
+SETUP_KEY_TYPES = ("reusable", "one-off")
+MAX_KEY_DAYS = 365
+
+
+def setup_key_create_payload(
+    *,
+    name: str,
+    type: str,
+    expires_days: int,
+    usage_limit: int,
+    auto_groups: Iterable[str],
+    ephemeral: bool = False,
+) -> Json:
+    """`POST /setup-keys` body. Keys always expire: no "never" from this UI."""
+    if not name.strip():
+        raise PayloadError("setup key name is required")
+    if type not in SETUP_KEY_TYPES:
+        raise PayloadError(f"unknown setup key type {type!r}")
+    if not 1 <= expires_days <= MAX_KEY_DAYS:
+        raise PayloadError(f"expiry must be 1 to {MAX_KEY_DAYS} days")
+    if usage_limit < 0:
+        raise PayloadError("usage limit cannot be negative")
+    return {
+        "name": name.strip(),
+        "type": type,
+        "expires_in": expires_days * 86400,
+        "usage_limit": usage_limit,
+        "auto_groups": list(dict.fromkeys(g for g in auto_groups if g)),
+        "ephemeral": ephemeral,
+        "allow_extra_dns_labels": False,
+    }
+
+
+def setup_key_update_payload(
+    fresh: Mapping[str, Any],
+    *,
+    auto_groups: Iterable[str] | None = None,
+    revoked: bool | None = None,
+) -> Json:
+    """`PUT /setup-keys/{id}` body: only auto-groups and revoked can change."""
+    was = bool(fresh.get("revoked", False))
+    if was and revoked is False:
+        raise PayloadError("a revoked setup key cannot be reactivated")
+    groups = _ids(fresh.get("auto_groups")) if auto_groups is None else list(auto_groups)
+    return {
+        "auto_groups": sorted(set(groups)),
+        "revoked": was if revoked is None else revoked,
+    }

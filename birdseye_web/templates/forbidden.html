@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Not allowed{% endblock %}
+{% block content %}
+<div class="card narrow-card">
+  <h1>Not allowed</h1>
+  <p class="flash err">{{ message }}</p>
+  <p><a class="button" href="/matrix">Back to matrix</a></p>
+</div>
+{% endblock %}

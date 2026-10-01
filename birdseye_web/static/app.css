@@ -178,7 +178,7 @@ fieldset.rule > legend { display: flex; gap: 10px; align-items: center; }
 .pick.checked { background: color-mix(in srgb, var(--accent) 9%, transparent); }
 .pick .name { font-weight: 500; }
 .pick .muted { margin-left: auto; }
-.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .dot.on { background: var(--ok); }
 .dot.off { background: var(--line); }
 
@@ -190,7 +190,7 @@ fieldset.rule > legend { display: flex; gap: 10px; align-items: center; }
 .chip-toggle:has(input:checked) { border-color: var(--cond); background: color-mix(in srgb, var(--cond) 12%, transparent); }
 
 .reach-line { display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; padding: 3px 0; border-bottom: 1px dashed var(--line); }
-.reach-line > span:first-child { flex: 1; min-width: 50%; }
+.reach-line > span:first-child, .reach-line > a:first-child { flex: 1; min-width: 50%; }
 
 ul.delta { list-style: none; padding: 0; margin: 0 0 8px; font-size: 12px; }
 ul.delta li { padding: 2px 0; }
@@ -267,3 +267,13 @@ tr.job-log-row td { border-top: 0; padding-top: 0; }
 .job-history { display: flex; flex-wrap: wrap; gap: 2px; margin: 6px 0; }
 pre.job-log { max-height: 320px; overflow: auto; background: var(--bg); border: 1px solid var(--line);
   border-radius: 6px; padding: 8px; font: 11px/1.4 var(--mono); white-space: pre-wrap; margin: 4px 0 0; }
+
+/* --- filter bar (peers, audit, setup keys) ------------------------------------------ */
+.filter-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.filter-bar input[type=search] { flex: 1; min-width: 220px; max-width: 360px; }
+.secret { font-family: var(--mono); font-size: 14px; padding: 8px 10px; border: 1px dashed var(--warn);
+          border-radius: 6px; user-select: all; word-break: break-all; }
+.narrow-form { max-width: 640px; }
+.pill.key-valid { border-color: var(--ok); color: var(--ok); }
+.pill.key-expired, .pill.key-exhausted { border-color: var(--warn); color: var(--warn); }
+.pill.key-revoked { border-color: var(--deny); color: var(--deny); }

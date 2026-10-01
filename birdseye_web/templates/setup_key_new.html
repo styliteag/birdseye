@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}New setup key{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="/setup-keys">Setup keys</a> /</p>
+<h1>New setup key</h1>
+{% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+<form class="card narrow-form" method="post" action="/setup-keys">
+  <input type="hidden" name="csrf" value="{{ session.csrf }}">
+  <label class="block">Name <input name="name" value="{{ v.name }}" required></label>
+  <label class="block">Type
+    <select name="type">{% for t in types %}<option value="{{ t }}" {% if t == v.type %}selected{% endif %}>{{ t }}</option>{% endfor %}</select>
+  </label>
+  <label class="block">Expires in (days, 1–{{ max_days }}) <input type="number" name="expires_days" min="1" max="{{ max_days }}" value="{{ v.expires_days }}" required></label>
+  <label class="block">Usage limit (reusable keys; 0 = unlimited) <input type="number" name="usage_limit" min="0" value="{{ v.usage_limit }}"></label>
+  <label class="check"><input type="checkbox" name="ephemeral" value="1" {% if v.ephemeral %}checked{% endif %}> Ephemeral peers (removed after 10 minutes offline)</label>
+  <fieldset class="picklist" data-picklist>
+    <legend>Auto-assigned groups <span class="muted" data-count></span></legend>
+    <p class="muted small">Peers enrolled with this key join these groups.</p>
+    <div class="picklist-tools"><input type="search" placeholder="Filter groups…" data-filter></div>
+    <div class="picklist-items">
+      {% for g in groups %}
+      <label class="pick" data-text="{{ g.name|lower }}">
+        <input type="checkbox" name="groups" value="{{ g.id }}" {% if g.id in v.groups %}checked{% endif %}>
+        <span class="name">{{ g.name }}</span>
+      </label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  <div class="actions"><button class="primary">Create</button></div>
+</form>
+{% endblock %}

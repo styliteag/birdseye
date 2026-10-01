@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Peers{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Peers <span class="count" id="peer-count">{{ peers|length }}</span></h1>
+</div>
+<form class="filter-bar" hx-get="/peers" hx-target="#peer-rows" hx-trigger="input changed delay:250ms" hx-push-url="true">
+  <input type="search" name="q" value="{{ query.q }}" placeholder="Search name, IP, OS, version, user…">
+  <select name="status">
+    <option value="">online + offline</option>
+    <option value="online" {% if query.status == 'online' %}selected{% endif %}>online</option>
+    <option value="offline" {% if query.status == 'offline' %}selected{% endif %}>offline</option>
+  </select>
+  <select name="user">
+    <option value="">any user</option>
+    <option value="-" {% if query.user == '-' %}selected{% endif %}>no user (setup key)</option>
+    {% for u in users %}<option value="{{ u.id }}" {% if query.user == u.id %}selected{% endif %}>{{ u.label }}</option>{% endfor %}
+  </select>
+  <select name="group">
+    <option value="">any group</option>
+    {% for g in groups %}<option value="{{ g.id }}" {% if query.group == g.id %}selected{% endif %}>{{ g.name }}</option>{% endfor %}
+  </select>
+  <select name="os">
+    <option value="">any OS</option>
+    {% for o in oses %}<option value="{{ o }}" {% if query.os == o %}selected{% endif %}>{{ o }}</option>{% endfor %}
+  </select>
+  <label class="check"><input type="checkbox" name="expired" value="1" {% if query.expired %}checked{% endif %}> login expired</label>
+</form>
+<p class="muted small">Sorted by last seen; online peers first.</p>
+<table class="list">
+  <thead><tr><th>Name</th><th>IP</th><th>User</th><th>OS</th><th>Version</th><th>Last seen</th><th>Groups</th></tr></thead>
+  <tbody id="peer-rows">{% include "_peer_rows.html" %}</tbody>
+</table>
+{% endblock %}

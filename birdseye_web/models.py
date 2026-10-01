@@ -7,8 +7,10 @@ objects (`{"id", "name", ...}`) are flattened to IDs.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any
 
 Raw = Mapping[str, Any]
@@ -55,6 +57,15 @@ class Peer:
     group_ids: frozenset[str]
     connected: bool = False
     os: str = ""
+    hostname: str = ""
+    version: str = ""
+    last_seen: datetime | None = None
+    dns_label: str = ""
+    ssh_enabled: bool = False
+    login_expiration_enabled: bool = False
+    login_expired: bool = False
+    inactivity_expiration_enabled: bool = False
+    approval_required: bool = False
 
 
 @dataclass(frozen=True)
@@ -136,6 +147,38 @@ class PostureCheck:
 
 
 @dataclass(frozen=True)
+class SetupKey:
+    """A setup key without its secret: the value is never parsed or kept."""
+
+    id: str
+    name: str
+    type: str  # "one-off" | "reusable"
+    expires: datetime | None
+    revoked: bool
+    used_times: int
+    usage_limit: int  # 0 = unlimited
+    auto_groups: frozenset[str]
+    ephemeral: bool = False
+    last_used: datetime | None = None
+    api_state: str = ""  # NetBird's own: valid | expired | revoked | overused
+
+    @property
+    def reusable(self) -> bool:
+        return self.type == "reusable"
+
+    def state_at(self, now: datetime) -> str:
+        """valid | revoked | expired | exhausted (usage limit reached)."""
+        if self.revoked or self.api_state == "revoked":
+            return "revoked"
+        if self.api_state == "expired" or (self.expires is not None and self.expires <= now):
+            return "expired"
+        limit = self.usage_limit if self.reusable else 1
+        if self.api_state == "overused" or (limit and self.used_times >= limit):
+            return "exhausted"
+        return "valid"
+
+
+@dataclass(frozen=True)
 class Snapshot:
     peers: Mapping[str, Peer] = field(default_factory=dict)
     groups: Mapping[str, Group] = field(default_factory=dict)
@@ -144,6 +187,8 @@ class Snapshot:
     networks: Mapping[str, Network] = field(default_factory=dict)
     policies: Mapping[str, Policy] = field(default_factory=dict)
     posture_checks: Mapping[str, PostureCheck] = field(default_factory=dict)
+    # only visible to roles that may read setup keys
+    setup_keys: Mapping[str, SetupKey] = field(default_factory=dict)
     # groups that setup keys put new peers into (only visible to admins)
     setup_key_group_ids: frozenset[str] = frozenset()
     # account setting: a user's auto-group change also moves their existing
@@ -178,6 +223,22 @@ def _ids(items: Iterable[Any] | None) -> tuple[str, ...]:
         elif item:
             out.append(str(item))
     return tuple(out)
+
+
+def parse_time(value: Any) -> datetime | None:
+    """RFC3339 timestamp (`Z` or offset, any fraction length) as aware UTC."""
+    if not value or not isinstance(value, str):
+        return None
+    text = value.strip().replace("Z", "+00:00")
+    # Go emits nanoseconds; Python parses at most microseconds.
+    text = re.sub(r"(\.\d{6})\d+", r"\1", text)
+    try:
+        dt = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if dt.year <= 1:  # Go zero time: "never"
+        return None
+    return dt.astimezone(UTC) if dt.tzinfo else dt.replace(tzinfo=UTC)
 
 
 def _ref(raw: Raw | None) -> Ref | None:
@@ -242,6 +303,15 @@ def parse_peer(raw: Raw) -> Peer:
         group_ids=frozenset(_ids(raw.get("groups"))),
         connected=bool(raw.get("connected", False)),
         os=str(raw.get("os") or ""),
+        hostname=str(raw.get("hostname") or ""),
+        version=str(raw.get("version") or ""),
+        last_seen=parse_time(raw.get("last_seen")),
+        dns_label=str(raw.get("dns_label") or ""),
+        ssh_enabled=bool(raw.get("ssh_enabled", False)),
+        login_expiration_enabled=bool(raw.get("login_expiration_enabled", False)),
+        login_expired=bool(raw.get("login_expired", False)),
+        inactivity_expiration_enabled=bool(raw.get("inactivity_expiration_enabled", False)),
+        approval_required=bool(raw.get("approval_required", False)),
     )
 
 
@@ -266,6 +336,22 @@ def parse_resource(raw: Raw, network_id: str) -> Resource:
         network_id=network_id,
         group_ids=frozenset(_ids(raw.get("groups"))),
         enabled=bool(raw.get("enabled", True)),
+    )
+
+
+def parse_setup_key(raw: Raw) -> SetupKey:
+    return SetupKey(
+        id=str(raw["id"]),
+        name=str(raw.get("name") or ""),
+        type=str(raw.get("type") or ""),
+        expires=parse_time(raw.get("expires")),
+        revoked=bool(raw.get("revoked", False)),
+        used_times=int(raw.get("used_times") or 0),
+        usage_limit=int(raw.get("usage_limit") or 0),
+        auto_groups=frozenset(_ids(raw.get("auto_groups"))),
+        ephemeral=bool(raw.get("ephemeral", False)),
+        last_used=parse_time(raw.get("last_used")),
+        api_state=str(raw.get("state") or ""),
     )
 
 
@@ -299,6 +385,7 @@ def build_snapshot(
         for r in res_raw:
             res = parse_resource(r, net.id)
             resources[res.id] = res
+    keys = [parse_setup_key(k) for k in setup_keys]
     settings = next((a.get("settings") or {} for a in accounts), {})
     propagation = settings.get("groups_propagation_enabled")
     return Snapshot(
@@ -312,8 +399,7 @@ def build_snapshot(
             str(c["id"]): PostureCheck(str(c["id"]), str(c.get("name") or ""))
             for c in posture_checks
         },
-        setup_key_group_ids=frozenset(
-            g for k in setup_keys if not k.get("revoked") for g in _ids(k.get("auto_groups"))
-        ),
+        setup_keys={k.id: k for k in keys},
+        setup_key_group_ids=frozenset(g for k in keys if not k.revoked for g in k.auto_groups),
         groups_propagation=None if propagation is None else bool(propagation),
     )

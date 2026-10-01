@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}{{ peer.name }}{% endblock %}
+{% block content %}
+{% set names = snap.names() %}
+<p class="crumbs"><a href="/peers">Peers</a> /</p>
+<h1><span class="dot {{ 'on' if peer.connected else 'off' }}"></span> {{ peer.name }}
+  {% if peer.login_expired %}<span class="pill sev-warning">login expired</span>{% endif %}
+  {% if peer.approval_required %}<span class="pill sev-warning">needs approval</span>{% endif %}</h1>
+<p class="muted small">
+  <code>{{ peer.ip }}</code>{% if peer.dns_label %} · {{ peer.dns_label }}{% endif %}
+  · {{ peer.hostname or '–' }} · {{ peer.os or 'unknown OS' }}{% if peer.version %} · NetBird {{ peer.version }}{% endif %}
+  · {% if peer.connected %}online{% else %}last seen {{ peer.last_seen|ago or 'never' }}{% endif %}
+  · {% if owner %}user <a href="/users/{{ owner.id }}">{{ owner.label }}</a>{% else %}no user (setup key){% endif %}
+  · <a href="/audit?target={{ peer.id }}">History</a>
+</p>
+{% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+
+<div class="split">
+  <form id="peer-form" class="card" method="post" action="/peers/{{ peer.id }}">
+    <input type="hidden" name="csrf" value="{{ session.csrf }}">
+    {% if can_peers %}
+    <input type="hidden" name="settings_field" value="1">
+    <label class="block">Name
+      <input name="name" value="{{ form.name if form and form.name is not none else peer.name }}" required>
+    </label>
+    {% set ssh = form.ssh_enabled if form and form.ssh_enabled is not none else peer.ssh_enabled %}
+    {% set exp = form.login_expiration_enabled if form and form.login_expiration_enabled is not none else peer.login_expiration_enabled %}
+    <label class="check"><input type="checkbox" name="ssh_enabled" value="1" {% if ssh %}checked{% endif %}> SSH server enabled</label><br>
+    <label class="check"><input type="checkbox" name="login_expiration_enabled" value="1" {% if exp %}checked{% endif %}> Login expiration (user must sign in again periodically)</label><br>
+    {% if peer.approval_required %}
+    <label class="check"><input type="checkbox" name="approve" value="1"> Approve this peer</label>
+    {% endif %}
+    {% else %}
+    <p class="muted small">SSH {{ 'on' if peer.ssh_enabled else 'off' }} · login expiration {{ 'on' if peer.login_expiration_enabled else 'off' }}. You may not change peer settings.</p>
+    {% endif %}
+
+    {% if can_groups %}<input type="hidden" name="groups_field" value="1">{% endif %}
+    {% for gid in initial_groups %}<input type="hidden" name="groups_initial" value="{{ gid }}">
+    {% endfor %}
+    <fieldset class="picklist" data-picklist>
+      <legend>Groups <span class="muted" data-count>{{ chosen|length }} selected</span></legend>
+      {% if other_groups %}<p class="muted small">Also in (managed by NetBird, the IdP or an integration):
+        {% for gid in other_groups %}<span class="pill">{{ names.get(gid, gid) }}</span> {% endfor %}</p>{% endif %}
+      <div class="picklist-tools">
+        <input type="search" placeholder="Filter groups…" data-filter>
+        <label class="check"><input type="checkbox" data-only-selected> selected only</label>
+      </div>
+      <div class="picklist-items">
+        {% for g in groups %}
+        <label class="pick" data-text="{{ g.name|lower }}">
+          <input type="checkbox" name="groups" value="{{ g.id }}" {% if g.id in chosen %}checked{% endif %} {% if not can_groups %}disabled{% endif %}>
+          <span class="name">{{ g.name }}</span>
+          <span class="muted small">{{ g.peer_ids|length }} peers{% if g.resource_ids %} · {{ g.resource_ids|length }} resources{% endif %}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    <div class="actions">
+      {% if can_peers or can_groups %}<button class="primary">Save</button>{% endif %}
+      {% if can_delete %}
+      <button class="danger" formaction="/peers/{{ peer.id }}/delete"
+              data-confirm="Delete peer “{{ peer.name }}”? It loses all access shown under “What is lost” and must be enrolled again.">Delete</button>
+      {% endif %}
+    </div>
+  </form>
+
+  <div class="side">
+    <section class="card">
+      <h3>Effect of this change</h3>
+      <div id="delta" hx-post="/peers/{{ peer.id }}/preview" hx-include="#peer-form"
+           hx-trigger="change from:#peer-form delay:200ms">
+        <p class="muted small">Change groups to see who gains or loses access.</p>
+      </div>
+      {% if can_delete %}
+      <details data-lazy>
+        <summary>What is lost if this peer is deleted?</summary>
+        <div hx-post="/peers/{{ peer.id }}/delete-preview" hx-trigger="lazy-open once"></div>
+      </details>
+      {% endif %}
+    </section>
+    <section class="card">
+      <h3>This peer can access <span class="count">{{ access.outgoing|length }}</span></h3>
+      {% for c in access.outgoing %}
+        <div class="reach-line"><a href="{{ c.ref|ref_link }}">{% if c.ref.kind == 'resource' %}▣ {% endif %}{{ snap.endpoint_name(c.ref) }}</a>
+          {% for sv in c.services %}<span class="pill">{{ sv }}</span>{% endfor %}</div>
+      {% else %}<p class="muted small">nothing</p>{% endfor %}
+      <h3>Who can access this peer <span class="count">{{ access.incoming|length }}</span></h3>
+      {% for c in access.incoming %}
+        <div class="reach-line"><a href="{{ c.ref|ref_link }}">{{ snap.endpoint_name(c.ref) }}</a>
+          {% for sv in c.services %}<span class="pill">{{ sv }}</span>{% endfor %}</div>
+      {% else %}<p class="muted small">nobody</p>{% endfor %}
+    </section>
+  </div>
+</div>
+{% endblock %}

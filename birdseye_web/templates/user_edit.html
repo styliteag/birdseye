@@ -56,7 +56,7 @@
         {% set d = drift.get(p.id) %}
         <div class="pick">
           <span class="dot {{ 'on' if p.connected else 'off' }}" title="{{ 'online' if p.connected else 'offline' }}"></span>
-          <span class="name">{{ p.name }}</span>
+          <a class="name" href="/peers/{{ p.id }}">{{ p.name }}</a>
           <span class="muted small">{{ p.ip }}</span>
           {% if d %}
             {% for gid in d.missing|sort %}<span class="pill sev-warning" title="missing">+ {{ names.get(gid, gid) }}</span> {% endfor %}

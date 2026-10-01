@@ -8,7 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
--
+- birdseye-web **peers page** (`/peers`): search and filter by online state,
+  user, group, OS and expired login, sorted by last seen. Peer editor: name,
+  SSH, login expiration and approval (`PUT /peers/{id}` from a fresh GET),
+  group membership (each changed group re-read and PUT whole, resources
+  kept) with the live access preview, delete with a preview of the lost
+  access, and the peer's effective access in and out. Peers link to their
+  editor from the matrix, reachability, the cell popover, the user editor and
+  the anomalies page.
+- birdseye-web **setup keys page** (`/setup-keys`): state badges (valid,
+  expired, revoked, exhausted), create with expiry, usage limit, auto-groups
+  and ephemeral flag, edit auto-groups, revoke (`PUT /setup-keys/{id}` from a
+  fresh GET), delete revoked keys. The new key's value appears once, in the
+  create response page only; it is not logged, cached, or put in a URL.
+  Hidden for roles that may not manage setup keys.
 
 ## [0.8.1] - 2026-10-01
 

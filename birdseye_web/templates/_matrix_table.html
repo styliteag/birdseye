@@ -22,7 +22,7 @@
     {% for r in m.rows %}
     <tr>
       <th class="row" data-row="{{ r.key }}" title="{{ r.sub }}">
-        {% if r.key.startswith('g:') %}<a href="/groups/{{ r.key[2:] }}">{{ r.label }}</a>{% else %}{{ r.label }}{% endif %}
+        {% if obj_link(r.key) %}<a href="{{ obj_link(r.key) }}">{{ r.label }}</a>{% else %}{{ r.label }}{% endif %}
         {% if r.sub %}<small>{{ r.sub }}</small>{% endif %}
       </th>
       {% for c in m.cols %}

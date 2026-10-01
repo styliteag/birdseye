@@ -182,4 +182,9 @@
 
   document.addEventListener("DOMContentLoaded", function () { initPicklists(document); });
   document.addEventListener("htmx:afterSwap", function (ev) { initPicklists(ev.detail.elt); });
+  // --- one-time secrets: never show again from the back/forward cache -------------
+  window.addEventListener("pageshow", function (ev) {
+    if (!ev.persisted) return;
+    document.querySelectorAll(".secret").forEach(function (el) { el.textContent = "(hidden – create a new key if you did not copy it)"; });
+  });
 })();

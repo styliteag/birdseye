@@ -24,7 +24,8 @@
       <tbody>
       {% for f in sec.findings %}
         <tr>
-          <td>{% if f.link %}<a href="{{ f.link }}">{{ f.title }}</a>{% else %}{{ f.title }}{% endif %}</td>
+          <td>{% if f.link %}<a href="{{ f.link }}">{{ f.title }}</a>{% else %}{{ f.title }}{% endif %}
+            {% if f.peer_id %} <a class="small" href="/peers/{{ f.peer_id }}">peer</a>{% endif %}</td>
           <td class="muted small">{{ f.detail }}</td>
           <td class="num"><span class="pill sev-{{ f.severity }}">{{ f.severity }}</span></td>
         </tr>

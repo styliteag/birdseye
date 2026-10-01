@@ -1,5 +1,5 @@
 <div class="pop-head">
-  <h3 class="detail-title">{{ row.label }} <span class="arrow">→</span> {{ col.label }}</h3>
+  <h3 class="detail-title">{% macro lbl(a) %}{% if obj_link(a.key) %}<a href="{{ obj_link(a.key) }}">{{ a.label }}</a>{% else %}{{ a.label }}{% endif %}{% endmacro %}{{ lbl(row) }} <span class="arrow">→</span> {{ lbl(col) }}</h3>
   <button type="button" class="link pop-close" data-pop-close title="Close (Esc)">✕</button>
 </div>
 

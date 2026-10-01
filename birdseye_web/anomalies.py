@@ -28,6 +28,7 @@ class Finding:
     detail: str = ""
     link: str = ""  # page to fix it
     group_id: str = ""  # the group the finding is about, if any
+    peer_id: str = ""  # the peer the finding is about, if any (links its editor)
 
 
 @dataclass(frozen=True)
@@ -159,6 +160,7 @@ def _device_deviation(snap: Snapshot) -> Iterator[Finding]:
             f"{p.name} (user {u.label})",
             detail="; ".join(parts),
             link=f"/users/{u.id}",
+            peer_id=p.id,
         )
 
 
@@ -196,7 +198,7 @@ def _only_all(snap: Snapshot) -> Iterator[Finding]:
             link = f"/users/{u.id}"
         else:
             link = "/groups/new?" + urlencode({"peer": p.id})
-        yield Finding("only-all", "info", f"{p.name} is only in “All”", link=link)
+        yield Finding("only-all", "info", f"{p.name} is only in “All”", link=link, peer_id=p.id)
 
 
 def _targeted_resources(snap: Snapshot) -> frozenset[str]:

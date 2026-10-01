@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Setup keys{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Setup keys <span class="count">{{ keys|length }}</span></h1>
+  <nav class="sev-filter">
+    <a href="/setup-keys" class="sev {{ 'active' if not state }}">all</a>
+    {% for st in all_states %}<a href="/setup-keys?state={{ st }}" class="sev {{ 'active' if state == st }}">{{ counts[st] }} {{ st }}</a>
+    {% endfor %}
+  </nav>
+  {% if can_create %}<a class="button primary" href="/setup-keys/new">+ New setup key</a>{% endif %}
+</div>
+<table class="list">
+  <thead><tr><th>Name</th><th>State</th><th>Type</th><th class="num">Used</th><th>Expires</th><th>Last used</th><th>Auto-assigned groups</th></tr></thead>
+  <tbody>
+  {% for k in keys %}
+  <tr>
+    <td><a href="/setup-keys/{{ k.id }}">{{ k.name }}</a>{% if k.ephemeral %} <span class="pill">ephemeral</span>{% endif %}</td>
+    <td><span class="pill key-{{ states[k.id] }}">{{ states[k.id] }}</span></td>
+    <td>{{ k.type }}</td>
+    <td class="num">{{ k.used_times }}{% if k.reusable and k.usage_limit %} / {{ k.usage_limit }}{% endif %}</td>
+    <td class="small">{{ k.expires.strftime('%Y-%m-%d') if k.expires else 'never' }}</td>
+    <td class="small">{{ k.last_used|ago or 'never' }}</td>
+    <td>{% for gid in k.auto_groups|sort %}<span class="pill">{{ snap.groups[gid].name if gid in snap.groups else gid }}</span> {% else %}<span class="muted">none</span>{% endfor %}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="7" class="empty">No setup key found.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
