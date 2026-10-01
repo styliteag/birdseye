@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   access, and the peer's effective access in and out. Peers link to their
   editor from the matrix, reachability, the cell popover, the user editor and
   the anomalies page.
+- birdseye-web **audit log** (`/audit`): NetBird's audit events with
+  filters (initiator, activity or category, target, date range, free text),
+  paging, names instead of IDs (deleted objects by their recorded name) and
+  links to the editors. *History* links on the group, policy, user, peer,
+  setup key, network and resource editors open the log filtered to that
+  object. Changes made through birdseye-web are marked (kept in memory
+  since the last restart).
 - Anomalies: housekeeping checks – expired peer login, peer waiting for
   approval, stale peer (`WEB_STALE_PEER_DAYS`, default 30), outdated client
   (`WEB_MIN_CLIENT_VERSION`, or the newest version seen), setup keys without

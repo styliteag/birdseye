@@ -4,7 +4,7 @@
 {% set names = snap.names() %}
 <p class="crumbs"><a href="/users">Users</a> /</p>
 <h1>{{ user.label }}{% if user.is_blocked %} <span class="pill">blocked</span>{% endif %}</h1>
-<p class="muted small">{{ user.email }}{% if is_self %} · this is you: role and block state cannot be changed here{% endif %}</p>
+<p class="muted small"><a href="/audit?target={{ user.id }}">History</a> · {{ user.email }}{% if is_self %} · this is you: role and block state cannot be changed here{% endif %}</p>
 {% if error %}<div class="flash err">{{ error }}</div>{% endif %}
 
 <div class="split">

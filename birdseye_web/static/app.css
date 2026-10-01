@@ -277,3 +277,5 @@ pre.job-log { max-height: 320px; overflow: auto; background: var(--bg); border: 
 .pill.key-valid { border-color: var(--ok); color: var(--ok); }
 .pill.key-expired, .pill.key-exhausted { border-color: var(--warn); color: var(--warn); }
 .pill.key-revoked { border-color: var(--deny); color: var(--deny); }
+.nowrap { white-space: nowrap; }
+.pager { display: flex; gap: 8px; align-items: center; margin-top: 8px; }

@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 
 from birdseye_web import (
     routes_anomalies,
+    routes_audit,
     routes_auth,
     routes_groups,
     routes_jobs,
@@ -81,6 +82,7 @@ def create_app(
     app.include_router(routes_peers.router)
     app.include_router(routes_setup_keys.router)
     app.include_router(routes_networks.router)
+    app.include_router(routes_audit.router)
     app.include_router(routes_policies.router)
     app.include_router(routes_anomalies.router)
     app.include_router(routes_jobs.router)

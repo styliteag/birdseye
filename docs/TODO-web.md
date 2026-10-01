@@ -23,18 +23,18 @@ Pure logic in its own tested module; routes only do HTTP. TDD.
 
 ## 2. Audit log view
 
-- [ ] `nbapi`: fetch `/api/events/audit` (not part of the cached snapshot;
+- [x] `nbapi`: fetch `/api/events/audit` (not part of the cached snapshot;
       own short cache or none)
-- [ ] `models.AuditEvent` frozen dataclass parsed from raw dict
-- [ ] `routes_audit.py` + `audit.html`: table, newest first, paging or limit
-- [ ] Filters: initiator (user), activity type, target object, time range, free text
-- [ ] Resolve IDs to names via snapshot; deleted objects shown by meta name
-- [ ] Link each target to its editor (group, policy, user, peer, resource)
-- [ ] Contract: router `prefix="/audit"`, `?target=<id>` filters by target
+- [x] `models.AuditEvent` frozen dataclass parsed from raw dict
+- [x] `routes_audit.py` + `audit.html`: table, newest first, paging or limit
+- [x] Filters: initiator (user), activity type, target object, time range, free text
+- [x] Resolve IDs to names via snapshot; deleted objects shown by meta name
+- [x] Link each target to its editor (group, policy, user, peer, resource)
+- [x] Contract: router `prefix="/audit"`, `?target=<id>` filters by target
       (peer and setup key editors already link there)
-- [ ] "History" link on group/policy/user/peer editors → audit filtered to that object
-- [ ] Highlight changes made through birdseye-web (same user, matching time) — optional
-- [ ] Nav entry, docs, CHANGELOG
+- [x] "History" link on group/policy/user/peer editors → audit filtered to that object
+- [x] Highlight changes made through birdseye-web (same user, matching time) — optional
+- [x] Nav entry, docs, CHANGELOG
 
 ## 3. Networks, resources and routers editor
 

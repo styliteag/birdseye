@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Audit log{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Audit log{% if target_label %} <span class="count">· {{ target_label }}</span>{% endif %}</h1>
+</div>
+<form class="filter-bar" hx-get="/audit" hx-target="#audit-body" hx-trigger="input changed delay:300ms" hx-push-url="true">
+  <input type="search" name="q" value="{{ query.q }}" placeholder="Search activity, names, details…">
+  <select name="initiator">
+    <option value="">anyone</option>
+    {% for iid, label in initiators %}<option value="{{ iid }}" {% if query.initiator == iid %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <select name="activity">
+    <option value="">any activity</option>
+    <optgroup label="Category">{% for c in categories %}<option value="{{ c }}" {% if query.activity == c %}selected{% endif %}>{{ c }}</option>{% endfor %}</optgroup>
+    <optgroup label="Activity">{% for c in codes %}<option value="{{ c }}" {% if query.activity == c %}selected{% endif %}>{{ c }}</option>{% endfor %}</optgroup>
+  </select>
+  <input name="target" value="{{ query.target }}" placeholder="Target ID" class="narrow">
+  <label class="small">from <input type="date" name="since" value="{{ query.since or '' }}"></label>
+  <label class="small">to <input type="date" name="until" value="{{ query.until or '' }}"></label>
+  {% if params %}<a class="small" href="/audit">reset</a>{% endif %}
+</form>
+<div id="audit-body">{% include "_audit_rows.html" %}</div>
+{% endblock %}

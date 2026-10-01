@@ -3,6 +3,7 @@
 {% block content %}
 <p class="crumbs"><a href="/policies">Policies</a> /</p>
 <h1>{{ policy.name or 'New policy' }}</h1>
+{% if pid %}<p class="muted small"><a href="/audit?target={{ pid }}">History</a></p>{% endif %}
 {% if error %}<div class="flash err">{{ error }}</div>{% endif %}
 
 <div class="split">

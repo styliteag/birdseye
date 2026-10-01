@@ -4,6 +4,7 @@
 {% set readonly = group and group.is_all %}
 <p class="crumbs"><a href="/groups">Groups</a> /</p>
 <h1>{{ group.name if group else 'New group' }}</h1>
+{% if group %}<p class="muted small"><a href="/audit?target={{ group.id }}">History</a></p>{% endif %}
 {% if error %}<div class="flash err">{{ error }}</div>{% endif %}
 {% if readonly %}<div class="flash info">“All” is maintained by NetBird and cannot be edited.</div>{% endif %}
 

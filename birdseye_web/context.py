@@ -5,8 +5,10 @@ from __future__ import annotations
 import hmac
 import logging
 import time
+from collections import deque
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import Depends, Request
@@ -116,10 +118,24 @@ async def snapshot(
     return await ctx(request).cache.get(s.user_id, lambda: load_snapshot(api))
 
 
+@dataclass(frozen=True)
+class WriteRecord:
+    """One write made through birdseye-web, kept in memory to mark it in the audit log."""
+
+    user_id: str
+    what: str
+    at: datetime
+
+
+# Process memory only, like the sessions; a restart forgets it.
+RECENT_WRITES: deque[WriteRecord] = deque(maxlen=2000)
+
+
 def log_change(s: Session, what: str, before: object, after: object) -> None:
     """Before/after line for every mutation (repo convention)."""
     # %r keeps user-supplied names on one line (no forged audit entries).
     audit.info("%r (%r) %r: %r -> %r", s.user_name, s.user_id, what, before, after)
+    RECENT_WRITES.append(WriteRecord(s.user_id, what, datetime.now(UTC)))
 
 
 def error_message(exc: Exception) -> str:
