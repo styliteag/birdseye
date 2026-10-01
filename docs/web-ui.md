@@ -22,7 +22,7 @@ It ships as its own image (`styliteag/birdseye-web`), separate from the
 | **Policies** | List with on/off switch; editor for multi-rule policies (groups or a single resource/peer as destination, `netbird-ssh`, ports and ranges, bidirectional, posture checks) with the same live effect preview. |
 | **Setup keys** | List with state badges (valid, expired, revoked, exhausted), usage, expiry, last use and auto-assigned groups. Create a key (name, type, expiry in days, usage limit, auto-groups, ephemeral): the key value is shown **once**, on the page right after creation, and is never logged or stored by birdseye. Edit auto-groups, revoke, delete revoked keys. Only shown to roles that may manage setup keys. |
 | **Jobs** | Status of the `birdseye` container's cron jobs and audit-event forwarder: last run, result, duration, history, log tail. Owners and admins can start selected jobs (by default `cleanup` and `maintenance`, both also as dry run). Optional, see [Jobs page](#jobs-page-optional). |
-| **Anomalies** | Configuration smells: rules that bypass groups, devices whose groups drifted from their user's defaults (linked to the user editor, where they can be fixed), peers inside resource groups, empty or missing groups in policies, resources nobody routes or reaches, unused groups, disabled policies. |
+| **Anomalies** | Configuration smells: rules that bypass groups, devices whose groups drifted from their user's defaults (linked to the user editor, where they can be fixed), peers inside resource groups, empty or missing groups in policies, resources nobody routes or reaches, unused groups, disabled policies. Housekeeping: peers with an expired login, waiting for approval, offline longer than `WEB_STALE_PEER_DAYS` or on an outdated client; setup keys that never expire, are reusable without limit, were never used, or expired without being revoked; users without a device; posture checks no policy uses. Each finding links to the editor that fixes it where there is one. `WEB_ANOMALY_IGNORE` hides findings about matching groups and is also applied to the counters. |
 
 Writes go to NetBird **immediately** (after the confirm/preview step) and show
 up in NetBird's audit log under the signed-in user's name.
@@ -101,6 +101,8 @@ on `127.0.0.1` only — put your reverse proxy (TLS) in front of it.
 | `WEB_CACHE_TTL` | no | `30` | Seconds a per-user snapshot of the account is reused. Every write clears it. |
 | `WEB_SESSION_HOURS` | no | `12` | Session lifetime. |
 | `WEB_JOBS_DIR` | no | – | Path of the shared jobs directory inside this container (e.g. `/jobs`). Empty hides the Jobs page's content. See [Jobs page](#jobs-page-optional). |
+| `WEB_STALE_PEER_DAYS` | no | `30` | Anomalies: an offline peer last seen longer ago than this is reported as stale. |
+| `WEB_MIN_CLIENT_VERSION` | no | – | Anomalies: peers below this NetBird version (e.g. `0.40.0`) are outdated. Empty compares against the newest version any peer runs. |
 | `WEB_ANOMALY_IGNORE` | no | – | Regex on group names the Anomalies page never reports, e.g. `^Z[0-9]{3}\b` for groups used as documentation notes. |
 | `TZ` | no | `UTC` | Log timestamps. |
 

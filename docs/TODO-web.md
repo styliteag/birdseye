@@ -57,16 +57,16 @@ Pure logic in its own tested module; routes only do HTTP. TDD.
 All from data already in the snapshot unless noted. Each one gets a test and,
 where possible, a link to the editor that fixes it.
 
-- [ ] Stale peers: last seen > `WEB_STALE_PEER_DAYS` (default 30) → peer editor
-- [ ] Peers with expired login → peer editor
-- [ ] Outdated client versions: below newest seen version (or `WEB_MIN_CLIENT_VERSION`)
-- [ ] Peers waiting for approval
-- [ ] Setup keys: valid but never used, no expiry, reusable without usage limit,
+- [x] Stale peers: last seen > `WEB_STALE_PEER_DAYS` (default 30) → peer editor
+- [x] Peers with expired login → peer editor
+- [x] Outdated client versions: below newest seen version (or `WEB_MIN_CLIENT_VERSION`)
+- [x] Peers waiting for approval
+- [x] Setup keys: valid but never used, no expiry, reusable without usage limit,
       expired but not revoked → setup key page (item 6)
-- [ ] Users without any device (excluding service users)
-- [ ] Posture checks not used by any policy
-- [ ] Respect `WEB_ANOMALY_IGNORE` where group names are involved
-- [ ] Docs: anomaly list and new env vars
+- [x] Users without any device (excluding service users)
+- [x] Posture checks not used by any policy
+- [x] Respect `WEB_ANOMALY_IGNORE` where group names are involved
+- [x] Docs: anomaly list and new env vars
 
 ## 6. Setup keys page
 

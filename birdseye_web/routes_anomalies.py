@@ -7,7 +7,7 @@ import re
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
 
-from birdseye_web.anomalies import CHECKS, SEVERITY_ORDER, find_anomalies
+from birdseye_web.anomalies import CHECKS, SEVERITY_ORDER, HygieneOptions, find_anomalies
 from birdseye_web.context import TEMPLATES, ctx, current_session, snapshot
 from birdseye_web.models import Snapshot
 from birdseye_web.sessions import Session
@@ -23,8 +23,10 @@ async def anomalies_page(
 ) -> Response:
     level = request.query_params.get("min", "info")
     limit = SEVERITY_ORDER.get(level, 2)
-    pattern = ctx(request).settings.anomaly_ignore
-    everything = find_anomalies(snap, re.compile(pattern) if pattern else None)
+    settings = ctx(request).settings
+    pattern = settings.anomaly_ignore
+    opts = HygieneOptions(settings.stale_peer_days, settings.min_client_version)
+    everything = find_anomalies(snap, re.compile(pattern) if pattern else None, options=opts)
     found = [f for f in everything if SEVERITY_ORDER[f.severity] <= limit]
     sections = []
     for check in CHECKS:
@@ -32,9 +34,7 @@ async def anomalies_page(
         if hits:
             sections.append({"check": check, "findings": hits, "severity": hits[0].severity})
     sections.sort(key=lambda sec: SEVERITY_ORDER[sec["severity"]])
-    counts = {
-        sev: sum(1 for f in find_anomalies(snap) if f.severity == sev) for sev in SEVERITY_ORDER
-    }
+    counts = {sev: sum(1 for f in everything if f.severity == sev) for sev in SEVERITY_ORDER}
     return TEMPLATES.TemplateResponse(
         request,
         "anomalies.html",

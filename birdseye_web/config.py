@@ -25,6 +25,9 @@ class Settings:
     session_hours: float = 12.0
     # groups whose name matches are never reported on the anomalies page
     anomaly_ignore: str = ""
+    # anomalies: offline peers older than this are "stale"; minimum client version
+    stale_peer_days: int = 30
+    min_client_version: str = ""
     # shared volume with the birdseye container (jobrun.py); empty = no Jobs page
     jobs_dir: str = ""
 
@@ -66,6 +69,13 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         re.compile(anomaly_ignore)
     except re.error as exc:
         raise ConfigError(f"birdseye-web: WEB_ANOMALY_IGNORE is not a valid regex: {exc}") from exc
+    try:
+        stale_days = int(get("WEB_STALE_PEER_DAYS", "30"))
+    except ValueError as exc:
+        raise ConfigError("birdseye-web: WEB_STALE_PEER_DAYS must be a whole number") from exc
+    min_version = get("WEB_MIN_CLIENT_VERSION")
+    if min_version and not re.match(r"^v?\d+\.\d+", min_version):
+        raise ConfigError("birdseye-web: WEB_MIN_CLIENT_VERSION must look like 0.40.0")
     redirect_path = get("WEB_REDIRECT_PATH", "/auth/callback")
     if not redirect_path.startswith("/"):
         raise ConfigError("birdseye-web: WEB_REDIRECT_PATH must start with '/'")
@@ -79,5 +89,7 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         cache_ttl=float(get("WEB_CACHE_TTL", "30")),
         session_hours=float(get("WEB_SESSION_HOURS", "12")),
         anomaly_ignore=anomaly_ignore,
+        stale_peer_days=stale_days,
+        min_client_version=min_version,
         jobs_dir=get("WEB_JOBS_DIR"),
     )

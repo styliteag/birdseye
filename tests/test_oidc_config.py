@@ -110,7 +110,13 @@ def test_settings_missing_lists_names():
 
 
 @pytest.mark.parametrize(
-    "override", [{"WEB_SESSION_SECRET": "short"}, {"WEB_REDIRECT_PATH": "callback"}]
+    "override",
+    [
+        {"WEB_SESSION_SECRET": "short"},
+        {"WEB_REDIRECT_PATH": "callback"},
+        {"WEB_STALE_PEER_DAYS": "a month"},
+        {"WEB_MIN_CLIENT_VERSION": "latest"},
+    ],
 )
 def test_settings_rejects(override):
     with pytest.raises(ConfigError):
@@ -127,3 +133,10 @@ def test_anomaly_ignore_regex_validated():
     assert ok.anomaly_ignore == r"^Z\d{3}\b"
     with pytest.raises(ConfigError, match="WEB_ANOMALY_IGNORE"):
         load_settings({**GOOD, "WEB_ANOMALY_IGNORE": "(["})
+
+
+def test_anomaly_thresholds():
+    s = load_settings(GOOD)
+    assert s.stale_peer_days == 30 and s.min_client_version == ""
+    s = load_settings({**GOOD, "WEB_STALE_PEER_DAYS": "7", "WEB_MIN_CLIENT_VERSION": "0.40.0"})
+    assert s.stale_peer_days == 7 and s.min_client_version == "0.40.0"

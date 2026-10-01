@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   access, and the peer's effective access in and out. Peers link to their
   editor from the matrix, reachability, the cell popover, the user editor and
   the anomalies page.
+- Anomalies: housekeeping checks – expired peer login, peer waiting for
+  approval, stale peer (`WEB_STALE_PEER_DAYS`, default 30), outdated client
+  (`WEB_MIN_CLIENT_VERSION`, or the newest version seen), setup keys without
+  expiry / reusable without limit / never used / expired but not revoked,
+  users without a device, unused posture checks. Each links to the peer,
+  setup key or user editor.
 - birdseye-web **networks editor** (`/networks`): networks with their
   resources and routers; create, rename and delete networks
   (`/networks`), resources (`/networks/{id}/resources`, with access preview
@@ -30,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fresh GET), delete revoked keys. The new key's value appears once, in the
   create response page only; it is not logged, cached, or put in a URL.
   Hidden for roles that may not manage setup keys.
+
+### Changed
+- Anomalies: the severity counters respect `WEB_ANOMALY_IGNORE` like the list.
 
 ## [0.8.1] - 2026-10-01
 

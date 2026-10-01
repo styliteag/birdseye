@@ -10,34 +10,16 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterator
-from dataclasses import dataclass
+from datetime import UTC, datetime
 from urllib.parse import urlencode
 
 from birdseye_web.access import group_members
 from birdseye_web.drift import peer_drift
+from birdseye_web.findings import SEVERITY_ORDER, Check, Finding
+from birdseye_web.hygiene import HYGIENE_CHECKS, HygieneOptions, hygiene_findings
 from birdseye_web.models import Snapshot
 
-SEVERITY_ORDER = {"error": 0, "warning": 1, "info": 2}
-
-
-@dataclass(frozen=True)
-class Finding:
-    check: str
-    severity: str  # "error" | "warning" | "info"
-    title: str
-    detail: str = ""
-    link: str = ""  # page to fix it
-    group_id: str = ""  # the group the finding is about, if any
-    peer_id: str = ""  # the peer the finding is about, if any (links its editor)
-    resource_id: str = ""  # likewise for a network resource
-
-
-@dataclass(frozen=True)
-class Check:
-    key: str
-    label: str
-    explain: str
-
+__all__ = ["CHECKS", "SEVERITY_ORDER", "Check", "Finding", "HygieneOptions", "find_anomalies"]
 
 CHECKS = (
     Check(
@@ -96,6 +78,7 @@ CHECKS = (
         "The group is in no policy, no user's or setup key's auto-groups, and routes nothing.",
     ),
     Check("disabled", "Disabled policy or rule", "Kept in the configuration, but grants nothing."),
+    *HYGIENE_CHECKS,
 )
 
 
@@ -286,7 +269,13 @@ def _disabled(snap: Snapshot) -> Iterator[Finding]:
                 )
 
 
-def find_anomalies(snap: Snapshot, ignore: re.Pattern[str] | None = None) -> tuple[Finding, ...]:
+def find_anomalies(
+    snap: Snapshot,
+    ignore: re.Pattern[str] | None = None,
+    *,
+    now: datetime | None = None,
+    options: HygieneOptions | None = None,
+) -> tuple[Finding, ...]:
     """All findings, most severe first. `ignore` matches group names to skip."""
     ignored = {g.id for g in snap.groups.values() if ignore and ignore.search(g.name)}
     found = [
@@ -300,6 +289,7 @@ def find_anomalies(snap: Snapshot, ignore: re.Pattern[str] | None = None) -> tup
         *_only_all(snap),
         *_unused_groups(snap),
         *_disabled(snap),
+        *hygiene_findings(snap, now or datetime.now(UTC), options or HygieneOptions()),
     ]
     kept = [f for f in found if f.group_id not in ignored]
     return tuple(sorted(kept, key=lambda f: SEVERITY_ORDER[f.severity]))

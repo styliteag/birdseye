@@ -32,6 +32,8 @@ services:
       # Regex on group names the Anomalies page never reports, e.g. groups used
       # only as documentation notes:  ^Z[0-9]{3}\b
       WEB_ANOMALY_IGNORE: ${WEB_ANOMALY_IGNORE:-}
+      WEB_STALE_PEER_DAYS: ${WEB_STALE_PEER_DAYS:-30}
+      WEB_MIN_CLIENT_VERSION: ${WEB_MIN_CLIENT_VERSION:-}
       # Jobs page: the birdseye container's jobs directory (docs/web-ui.md).
       # Leave empty and drop the volumes below if you do not run birdseye.
       WEB_JOBS_DIR: ${WEB_JOBS_DIR:-}
