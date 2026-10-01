@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ obj.name or oid }} at {{ stamp }}{% endblock %}
+{% block title %}{{ obj.name or oid }} (old version){% endblock %}
 {% block content %}
 <p class="crumbs"><a href="/history">Config history</a> / <a href="/history/object/{{ oid }}">{{ obj.name or oid }}</a> /</p>
 <h1>{{ obj.name or oid }} <span class="count">{{ label }} · {{ stamp|when }}</span></h1>

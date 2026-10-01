@@ -120,3 +120,14 @@ def test_via_birdseye_matches_user_time_and_target():
     assert not via_birdseye(ev("group.update", "G", initiator_id="u2"), writes)  # other user
     assert not via_birdseye(ev("group.update", "G", ts="2026-09-30T11:00:00Z"), writes)  # later
     assert via_birdseye(ev("policy.add", "newid"), writes)  # create: ID unknown when logged
+
+
+def test_date_filter_uses_viewers_time_zone():
+    # 23:30 UTC on the 30th is 01:30 on Oct 1st in CEST (getTimezoneOffset = -120)
+    ev = [parse_event(_ev(1, "group.add", "G", ts="2026-09-30T23:30:00Z"))]
+    ids = lambda q: [e.id for e in filter_events(ev, q, SNAP)]  # noqa: E731
+    assert ids(AuditQuery(since=date(2026, 10, 1))) == []
+    assert ids(AuditQuery(since=date(2026, 10, 1), tz_offset=-120)) == [1]
+    q = AuditQuery.from_params({"tz": "-120"})
+    assert q.tz_offset == -120
+    assert AuditQuery.from_params({"tz": "9999"}).tz_offset == 0  # out of range

@@ -65,7 +65,7 @@
         <summary class="small">log ({{ j.log_tail|length }} lines) · history ({{ j.history|length }})</summary>
         {% if j.history %}
         <div class="job-history">
-          {% for h in j.history %}<span class="pill st-{{ 'ok' if h.exit_code == 0 else 'failed' }}" title="{{ h.started }} · {{ h.trigger }} · {{ h.mode }} · {{ h.duration_s }} s">{{ h.started[5:16]|replace('T', ' ') }}</span>{% endfor %}
+          {% for h in j.history %}<span class="pill st-{{ 'ok' if h.exit_code == 0 else 'failed' }}" title="{{ h.trigger }} · {{ h.mode }} · {{ h.duration_s }} s">{{ h.started|when('short') }}</span>{% endfor %}
         </div>
         {% endif %}
         <pre class="job-log">{{ j.log_tail|join('\n') }}</pre>

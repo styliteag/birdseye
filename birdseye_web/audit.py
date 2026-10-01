@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from birdseye_web.models import Snapshot, parse_time
@@ -137,6 +137,8 @@ class AuditQuery:
     target: str = ""  # target ID
     since: date | None = None
     until: date | None = None  # inclusive
+    # viewer's JS `getTimezoneOffset()` in minutes, so days are their days
+    tz_offset: int = 0
     q: str = ""
 
     @classmethod
@@ -147,12 +149,24 @@ class AuditQuery:
             target=params.get("target", "").strip(),
             since=_date(params.get("since", "")),
             until=_date(params.get("until", "")),
+            tz_offset=_offset(params.get("tz", "")),
             q=params.get("q", "").strip(),
         )
 
 
-def _day(e: AuditEvent) -> date | None:
-    return e.timestamp.date() if e.timestamp else None
+def _offset(value: str) -> int:
+    try:
+        minutes = int(value)
+    except ValueError:
+        return 0
+    return minutes if abs(minutes) <= 14 * 60 else 0
+
+
+def _day(e: AuditEvent, tz_offset: int = 0) -> date | None:
+    """The event's calendar day for the viewer (offset as JS reports it)."""
+    if e.timestamp is None:
+        return None
+    return (e.timestamp - timedelta(minutes=tz_offset)).date()
 
 
 def _text(e: AuditEvent, snap: Snapshot) -> str:
@@ -168,7 +182,7 @@ def _matches(e: AuditEvent, q: AuditQuery, snap: Snapshot) -> bool:
         return False
     if q.target and e.target_id != q.target:
         return False
-    day = _day(e)
+    day = _day(e, q.tz_offset)
     if q.since and (day is None or day < q.since):
         return False
     if q.until and (day is None or day > q.until):

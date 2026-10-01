@@ -53,3 +53,9 @@ def test_when_renders_utc_time_tag_for_local_conversion():
     assert 'datetime="2026-10-01T18:15:00Z"' in str(when("20261001T181500Z"))
     assert ">2026-10-01 UTC<" in str(when(dt, "date"))
     assert str(when(None)) == "" and str(when("garbage")) == "garbage"
+
+
+def test_when_short_format():
+    from birdseye_web.ui import when
+
+    assert ">10-01 18:15 UTC<" in str(when("2026-10-01T18:15:00+00:00", "short"))

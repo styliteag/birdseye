@@ -16,6 +16,7 @@
     <optgroup label="Activity">{% for c in codes %}<option value="{{ c }}" {% if query.activity == c %}selected{% endif %}>{{ c }}</option>{% endfor %}</optgroup>
   </select>
   <input name="target" value="{{ query.target }}" placeholder="Target ID" class="narrow">
+  <input type="hidden" name="tz" value="{{ query.tz_offset }}" data-tz-offset>
   <label class="small">from <input type="date" name="since" value="{{ query.since or '' }}"></label>
   <label class="small">to <input type="date" name="until" value="{{ query.until or '' }}"></label>
   {% if params %}<a class="small" href="/audit">reset</a>{% endif %}

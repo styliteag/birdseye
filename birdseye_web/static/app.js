@@ -213,6 +213,7 @@
   // --- times: UTC from the server, shown in the viewer's time zone -----------------
   var TIME_FORMATS = {
     time: { hour: "2-digit", minute: "2-digit", second: "2-digit" },
+    short: { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" },
     date: { year: "numeric", month: "2-digit", day: "2-digit" },
     datetime: { year: "numeric", month: "2-digit", day: "2-digit",
                 hour: "2-digit", minute: "2-digit", second: "2-digit" }
@@ -227,7 +228,13 @@
       el.textContent = d.toLocaleString(undefined, fmt);
     });
   }
-  document.addEventListener("DOMContentLoaded", function () { localizeTimes(document); });
+  document.addEventListener("DOMContentLoaded", function () {
+    localizeTimes(document);
+    // date filters count the viewer's days, not UTC days
+    document.querySelectorAll("[data-tz-offset]").forEach(function (el) {
+      el.value = String(new Date().getTimezoneOffset());
+    });
+  });
   // after every swap, whole document: outerHTML swaps replace the event target
   document.addEventListener("htmx:afterSettle", function () { localizeTimes(document); });
 })();

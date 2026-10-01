@@ -61,7 +61,12 @@ def ago(when: datetime | None, now: datetime | None = None) -> str:
     return "just now"
 
 
-_FORMATS = {"datetime": "%Y-%m-%d %H:%M:%S", "time": "%H:%M:%S", "date": "%Y-%m-%d"}
+_FORMATS = {
+    "datetime": "%Y-%m-%d %H:%M:%S",
+    "time": "%H:%M:%S",
+    "date": "%Y-%m-%d",
+    "short": "%m-%d %H:%M",
+}
 
 
 def _as_datetime(value: object) -> datetime | None:
