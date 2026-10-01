@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-head">
   <h1>Networks <span class="count">{{ networks|length }}</span></h1>
-  {% if session.can('networks', 'create') or session.is_admin %}<a class="button primary" href="/networks/new">+ New network</a>{% endif %}
+  {% if session.can('networks', 'create') or session.is_admin %}<a class="button primary push" href="/networks/new">+ New network</a>{% endif %}
 </div>
 <p class="muted small">Resources are reachable through a network's routing peers. Policies give access to a resource directly or through its groups.</p>
 {% for n in networks %}
@@ -14,7 +14,7 @@
     <tbody>
     {% for r in resources[n.id] %}
       <tr>
-        <td><a href="/networks/{{ n.id }}/resources/{{ r.id }}">▣ {{ r.name }}</a></td>
+        <td><a href="/networks/{{ n.id }}/resources/{{ r.id }}">{{ {'subnet': '▦', 'domain': '◎'}.get(r.type, '▣') }} {{ r.name }}</a></td>
         <td><code>{{ r.address }}</code></td>
         <td>{% for gid in r.group_ids|sort %}<a class="pill" href="/groups/{{ gid }}">{{ snap.groups[gid].name if gid in snap.groups else gid }}</a> {% endfor %}</td>
         <td>{% if not r.enabled %}<span class="pill">off</span>{% endif %}</td>

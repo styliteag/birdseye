@@ -292,3 +292,4 @@ ul.changes .new { color: var(--ok); }
 footer.versions { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;
   padding: 12px 20px 20px; color: var(--muted); font-size: 12px; }
 main.wide + footer.versions { display: none; }
+.page-head .push { margin-left: auto; }

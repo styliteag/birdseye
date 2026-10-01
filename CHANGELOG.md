@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - History restore page said "Replaces the current policies" for one policy.
 - Audit log showed peers as "(deleted)" for events NetBird records with the
   peer's IP instead of its ID (e.g. "Peer SSH server enabled").
+- Networks page: "New network" button aligned right, and resources show
+  their kind (host, subnet, domain) like the Resources page.
 
 ## [0.9.2] - 2026-10-01
 
