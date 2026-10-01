@@ -52,7 +52,23 @@ def shot(page: Page, theme: str, name: str, full: bool = True) -> None:
     settle(page)
     path = OUT / theme / f"{name}.png"
     path.parent.mkdir(parents=True, exist_ok=True)
-    page.screenshot(path=str(path), full_page=full)
+    clip = None
+    if not full:
+        # cut the empty space below the content (the matrix fills the viewport)
+        bottom = page.evaluate(
+            "() => Math.max(0, ...[...document.querySelectorAll("
+            "'table.matrix, #popover:not([hidden])')]"
+            ".map(e => e.getBoundingClientRect().bottom))"
+        )
+        size = page.viewport_size
+        if bottom:
+            clip = {
+                "x": 0,
+                "y": 0,
+                "width": size["width"],
+                "height": min(size["height"], bottom + 24),
+            }
+    page.screenshot(path=str(path), full_page=full, clip=clip)
     print("  ", path.relative_to(OUT))
 
 

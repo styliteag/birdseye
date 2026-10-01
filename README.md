@@ -82,22 +82,32 @@ policy) to confirm the pipeline works.
 An access overview and editor for your NetBird account, shipped as its own
 image (`styliteag/birdseye-web`, `ghcr.io/styliteag/birdseye-web`):
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/matrix-dark.png">
+  <img alt="birdseye-web access matrix" src="docs/screenshots/matrix-light.png">
+</picture>
+
 - **Matrix** — who may access whom: Group × Group, Peer × Peer,
   Group × Resource, Peer × Resource, User × Destination; filter by name,
   protocol and port; click a cell to see which policy allows it.
 - **Edit in place** — in the group views, revoke or grant access straight
   from a cell. Every change first shows which peer pairs gain or lose access.
-- **Groups and policies** — create, rename, change membership, edit
-  multi-rule policies (including `netbird-ssh`, port ranges, posture
-  checks), each with the same gained/lost preview.
+- **Editors** — groups, policies (multi-rule, `netbird-ssh`, port ranges,
+  posture checks), users (role, auto-groups, device drift), peers, setup keys
+  (bulk revoke/delete, key shown once), networks with resources and routers —
+  each with the same gained/lost preview before saving.
+- **Resources** — every network resource with its groups, the policies that
+  reach it, router state and how many peers actually can.
 - **Reachability** — “can X reach Y on tcp/22?”, with the reasons.
-- **Jobs** — status of this image's cron jobs and forwarder (last run,
-  result, history, log tail); owners/admins can start `cleanup` and
-  `maintenance` early. Optional; needs the jobs directory shared between
-  the two containers.
-- **Anomalies** — rules that bypass groups, devices whose groups drifted
-  from their user's defaults, peers inside resource groups, empty or unused
-  groups, resources nobody reaches.
+- **Anomalies** — rules that bypass groups, drifted devices, unrouted or
+  unreachable resources, unused groups, risky setup keys, stale peers.
+- **Audit log and config history** — NetBird's audit events with names and
+  filters; snapshots of the configuration after every change, a field-level
+  diff between any two, and restore of a single policy or group.
+- **Jobs** — status of this image's cron jobs and forwarder; owners/admins
+  can start selected jobs early.
+
+**[All screenshots →](docs/screenshots.md)**
 
 There is no API key: you sign in with your NetBird account through
 NetBird's embedded IdP, and every call runs with your token, so NetBird

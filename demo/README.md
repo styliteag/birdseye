@@ -11,6 +11,12 @@ company "Acme", modelled on the prod compose (Traefik in front of
 
     uv run --project .. --with playwright python shoot.py        # screenshots -> screenshots/{light,dark}/
     uv run --project .. --with playwright python shoot.py dark   # one theme
+    uv run --project .. python publish_docs.py                     # curated set -> docs/screenshots/
+
+`publish_docs.py` copies 12 pages × light/dark into `docs/screenshots/`
+(pngquant + oxipng, ImageMagick fallback; ~1.8 MB), shown by
+`docs/screenshots.md` and the README. Only re-publish when the UI visibly
+changed — every run adds to the repository.
 
 After code changes, rebuild only our images:
 
@@ -69,4 +75,5 @@ Playwright's Chromium: `uv run --with playwright python -m playwright install ch
 | `login_users.py` | device-code login of user-owned peers |
 | `changes.py` | two rounds of config changes for History/Audit |
 | `shoot.py` | screenshots |
+| `publish_docs.py` | curated, compressed screenshots for the docs |
 | `secrets.env`, `web.env`, `peers.yml`, `data/` | generated, wiped by down.sh |

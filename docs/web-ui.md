@@ -10,6 +10,8 @@ It ships as its own image (`styliteag/birdseye-web`), separate from the
 
 ## What you get
 
+Screenshots of every page: **[screenshots.md](screenshots.md)**.
+
 | Page | What it does |
 |---|---|
 | **Matrix** | Who may access whom, as a grid. Five views: Group × Group, Peer × Peer, Group × Resource, Peer × Resource, User × Destination. Filter by name, protocol, port; hide “All”; in Group × Group also show unused groups; show only posture-gated access. Click a cell to see *which* policy allows it. |

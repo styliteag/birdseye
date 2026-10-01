@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Screenshots: gallery page `docs/screenshots.md` (light/dark follow the
+  GitHub theme), a matrix screenshot and an updated feature list in the
+  README, and the local demo stack in `demo/` that produces them.
+
 ### Fixed
 - An `http://` `NB_URL` (local test setups) was silently turned into HTTPS
   by the scripts and the event forwarder; the scheme is now kept.
