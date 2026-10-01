@@ -13,6 +13,7 @@ from birdseye_web.access import grants
 from birdseye_web.context import (
     OBJECT_ID,
     TEMPLATES,
+    config_changed,
     csrf_protect,
     ctx,
     current_session,
@@ -211,6 +212,7 @@ async def group_create(
             await _assign_users(api, s, snap, gid, users)
         except (PayloadError, NetBirdError) as exc:
             return await _partial_failure(request, s, api, gid, exc)
+    config_changed(request, s)  # after the user updates, so the snapshot has both
     return RedirectResponse(f"/groups/{gid}?saved=1", status_code=303)
 
 
@@ -256,6 +258,7 @@ async def group_update(
             await _assign_users(api, s, snap, gid, users)
         except (PayloadError, NetBirdError) as exc:
             return await _partial_failure(request, s, api, gid, exc)
+    config_changed(request, s)  # after the user updates, so the snapshot has both
     return RedirectResponse(f"/groups/{gid}?saved=1", status_code=303)
 
 
@@ -273,7 +276,7 @@ async def group_delete(
     except NetBirdError as exc:
         return _editor(request, s, snap, group, error_message(exc), status=400)
     log_change(s, f"delete group {gid}", group.name if group else gid, None)
-    ctx(request).cache.invalidate()
+    config_changed(request, s)
     return RedirectResponse("/groups?deleted=1", status_code=303)
 
 

@@ -4,7 +4,7 @@
     ⏳ A snapshot is being taken right now. This page reloads when it is ready.
   {% else %}
     ⏳ The configuration changed at {{ status.changed_at|when('time') }}, after the newest snapshot.
-    A new snapshot is taken about a minute after the last change – usually within 1–2 minutes. This page reloads when it is ready.
+    A new snapshot follows within seconds for changes made here, within about a minute for changes made elsewhere (NetBird dashboard, CLI, API). This page reloads when it is ready.
   {% endif %}
 </div>
 {% elif status.state == 'unscheduled' %}

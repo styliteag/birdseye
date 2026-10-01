@@ -103,7 +103,7 @@ def test_registry_roundtrip_and_triggerable_allowlist(jobs):
 
 def test_triggers_env_default(monkeypatch):
     monkeypatch.delenv("JOB_TRIGGERS", raising=False)
-    assert jobrun.trigger_allowlist() == {"cleanup", "maintenance"}
+    assert jobrun.trigger_allowlist() == {"cleanup", "maintenance", "history"}
     monkeypatch.setenv("JOB_TRIGGERS", " cleanup , ")
     assert jobrun.trigger_allowlist() == {"cleanup"}
 

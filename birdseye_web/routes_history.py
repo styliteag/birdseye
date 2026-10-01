@@ -18,6 +18,7 @@ from birdseye_web.audit import parse_event
 from birdseye_web.context import (
     OBJECT_ID,
     TEMPLATES,
+    config_changed,
     csrf_protect,
     ctx,
     current_session,
@@ -65,7 +66,7 @@ TEMPLATES.env.globals["flat_changes"] = flat_changes
 NAMED = ("groups", "peers", "posture_checks", "users", "networks", "setup_keys", "policies")
 # audit codes that do not change the configuration (same default as the forwarder)
 NOISE = "login"
-POLL_S = 10
+POLL_S = 5
 
 
 def _names(base: FsPath, stamps: list[str], snap: Snapshot) -> dict[str, str]:
@@ -305,6 +306,6 @@ async def restore(
     except NetBirdError as exc:
         return Response(error_message(exc), status_code=400)
     log_change(s, f"restore {SINGULAR[slug]} {oid} from {stamp} as {new_id}", before, plan.payload)
-    ctx(request).cache.invalidate()
+    config_changed(request, s)
     target = f"{EDITORS[slug]}{new_id}" if new_id else EDITORS[slug].rstrip("/")
     return RedirectResponse(f"{target}?saved=1", status_code=303)

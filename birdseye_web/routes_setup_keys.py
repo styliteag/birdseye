@@ -18,8 +18,8 @@ from fastapi.responses import RedirectResponse, Response
 from birdseye_web.context import (
     OBJECT_ID,
     TEMPLATES,
+    config_changed,
     csrf_protect,
-    ctx,
     current_session,
     error_message,
     log_change,
@@ -159,7 +159,7 @@ async def key_create(
     except (PayloadError, NetBirdError) as exc:
         return _new_form(request, s, snap, error_message(exc), values, 400)
     log_change(s, "create setup key", None, body)  # request body: has no key value
-    ctx(request).cache.invalidate()
+    config_changed(request, s)
     # Shown once, in this response only (no redirect: the value must not be in a URL).
     return TEMPLATES.TemplateResponse(
         request,
@@ -216,7 +216,7 @@ async def key_bulk(
             counts[await _bulk_one(api, s, kid, action)] += 1
         except (PayloadError, NetBirdError):
             counts["failed"] += 1
-    ctx(request).cache.invalidate()
+    config_changed(request, s)
     return RedirectResponse(
         "/setup-keys?" + urlencode({k: v for k, v in counts.items() if v}), status_code=303
     )
@@ -289,7 +289,7 @@ async def key_update(
             log_change(s, f"update setup key {kid}", before, body)
     except (PayloadError, NetBirdError) as exc:
         return _editor(request, s, snap, key, error_message(exc), 400)
-    ctx(request).cache.invalidate()
+    config_changed(request, s)
     return RedirectResponse(f"/setup-keys/{kid}?saved=1", status_code=303)
 
 
@@ -312,5 +312,5 @@ async def key_delete(
     except (PayloadError, NetBirdError) as exc:
         return _editor(request, s, snap, key, error_message(exc), 400)
     log_change(s, f"delete setup key {kid}", key.name, None)
-    ctx(request).cache.invalidate()
+    config_changed(request, s)
     return RedirectResponse("/setup-keys?deleted=1", status_code=303)

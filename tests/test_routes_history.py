@@ -158,7 +158,11 @@ def test_status_pending_after_change(client, nb, jobs):
     _change(nb)
     login(client)
     html = client.get("/history").text
-    assert "changed at <time datetime=\"2026-09-30T12:00:00Z\" data-fmt=\"time\">12:00:00 UTC</time>" in html and 'hx-get="/history/status?waiting=1"' in html
+    assert (
+        'changed at <time datetime="2026-09-30T12:00:00Z" data-fmt="time">12:00:00 UTC</time>'
+        in html
+        and 'hx-get="/history/status?waiting=1"' in html
+    )
 
 
 def test_status_unscheduled_and_login_noise(client, nb, jobs):

@@ -48,14 +48,28 @@ def test_login_noise_does_not_trigger():
     assert started == []
 
 
-def test_busy_job_is_retried_next_tick():
+def test_busy_job_is_retried_after_a_pause():
     clock = Clock()
     t, started = _trigger(clock, outcomes={1: "busy"})
     t.note([_ev("group.add")])
     clock.t += 60
     t.tick()
+    t.tick()  # immediately again: not yet
+    assert len(started) == 1 and t.seconds_until_due() == 10
+    clock.t += 10
     t.tick()
     assert len(started) == 2
+
+
+def test_seconds_until_due():
+    clock = Clock()
+    t, _ = _trigger(clock)
+    assert t.seconds_until_due() is None
+    t.note([_ev("group.add")])
+    clock.t += 45
+    assert t.seconds_until_due() == 15
+    clock.t += 30
+    assert t.seconds_until_due() == 0
 
 
 def test_disabled_job_gives_up():

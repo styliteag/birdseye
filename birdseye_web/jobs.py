@@ -156,3 +156,16 @@ def request_run(base: Path, key: str, mode: str, *, by: str) -> str:
     except OSError as exc:
         raise JobError(f"cannot queue the run: {exc.strerror or exc}") from exc
     return rid
+
+
+def request_snapshot(jobs_dir: str, *, by: str) -> bool:
+    """Ask the birdseye container for a config history snapshot right after
+    a write here. Only when `history` is in its JOB_TRIGGERS; otherwise the
+    forwarder's audit-event trigger takes care of it a little later."""
+    if not jobs_dir:
+        return False
+    try:
+        request_run(Path(jobs_dir), "history", "run", by=by)
+    except JobError:
+        return False
+    return True

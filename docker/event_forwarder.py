@@ -778,17 +778,29 @@ def _run(
             if history is not None:
                 history.note(new_events)
 
-        if history is not None:
-            outcome = history.tick()
-            if outcome:
-                _log_info(f"config changed: history snapshot {outcome}")
         email.tick()
         heartbeat.beat(state, ok=True, new=len(new_events))
 
         try:
-            time.sleep(poll_interval)
+            _wait(poll_interval, history)
         except KeyboardInterrupt:
             return 0
+
+
+def _wait(seconds: float, history: ChangeTrigger | None) -> None:
+    """Sleep until the next poll, but start a due history snapshot on time
+    instead of at that poll."""
+    end = time.time() + seconds
+    while True:
+        left = end - time.time()
+        due = history.seconds_until_due() if history is not None else None
+        if due is None or due >= left:
+            time.sleep(max(0.0, left))
+            return
+        time.sleep(due)
+        outcome = history.tick()
+        if outcome:
+            _log_info(f"config changed: history snapshot {outcome}")
 
 
 # --- main ------------------------------------------------------------------
@@ -850,7 +862,7 @@ def _history_trigger(jobs_dir: Path) -> ChangeTrigger | None:
 
     return ChangeTrigger(
         "history",
-        settle_s=_env_float("HISTORY_SETTLE_SECONDS", 60.0),
+        settle_s=_env_float("HISTORY_SETTLE_SECONDS", 15.0),
         start=start,
         include=_env_list("HISTORY_TRIGGER_INCLUDE", "*"),
         exclude=_env_list("HISTORY_TRIGGER_EXCLUDE", "*login*"),

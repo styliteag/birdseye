@@ -11,8 +11,8 @@ from starlette.datastructures import FormData
 from birdseye_web.context import (
     OBJECT_ID,
     TEMPLATES,
+    config_changed,
     csrf_protect,
-    ctx,
     current_session,
     error_message,
     log_change,
@@ -306,7 +306,7 @@ async def _save(request, s, api, snap, pid: str | None) -> Response:
     except (PayloadError, NetBirdError) as exc:
         editor = _form_to_editor(_partial_form(form), snap)
         return _editor(request, s, snap, editor, error_message(exc), 400, pid or "")
-    ctx(request).cache.invalidate()
+    config_changed(request, s)
     return RedirectResponse(f"/policies/{pid}?saved=1", status_code=303)
 
 
@@ -373,7 +373,7 @@ async def policy_toggle(
     body = policy_for_put(current, enabled=not current.get("enabled", True))
     await api.put(f"policies/{pid}", body)
     log_change(s, f"toggle policy {pid}", current.get("enabled"), body["enabled"])
-    ctx(request).cache.invalidate()
+    config_changed(request, s)
     return RedirectResponse(safe_path(request.headers.get("referer"), "/policies"), status_code=303)
 
 
@@ -399,5 +399,5 @@ async def policy_delete(
     pol = snap.policies.get(pid)
     await api.delete(f"policies/{pid}")
     log_change(s, f"delete policy {pid}", pol.name if pol else pid, None)
-    ctx(request).cache.invalidate()
+    config_changed(request, s)
     return RedirectResponse("/policies?deleted=1", status_code=303)

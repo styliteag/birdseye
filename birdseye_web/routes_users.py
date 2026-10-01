@@ -17,6 +17,7 @@ from fastapi.responses import RedirectResponse, Response
 from birdseye_web.context import (
     OBJECT_ID,
     TEMPLATES,
+    config_changed,
     csrf_protect,
     ctx,
     current_session,
@@ -215,7 +216,7 @@ async def user_update(
             await _align_devices(api, s, snap, peers, want)
         except (PayloadError, NetBirdError) as exc:
             return await _partial_failure(request, s, api, uid, exc)
-        ctx(request).cache.invalidate()
+    config_changed(request, s)
     return RedirectResponse(f"/users/{uid}?saved=1", status_code=303)
 
 

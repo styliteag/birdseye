@@ -109,3 +109,22 @@ def test_request_run_validates(jobs_dir, key, mode, msg):
     with pytest.raises(JobError, match=msg):
         request_run(jobs_dir, key, mode, by="x")
     assert list((jobs_dir / "requests").glob("*")) == []
+
+
+def test_request_snapshot_only_when_history_is_triggerable(jobs_dir):
+    import json as _json
+
+    from birdseye_web.jobs import request_snapshot
+
+    reg = jobs_dir / "registry.json"
+    reg.write_text(
+        _json.dumps({"jobs": [{"key": "history", "enabled": True, "triggerable": False}]})
+    )
+    assert request_snapshot(str(jobs_dir), by="alice") is False
+    reg.write_text(
+        _json.dumps({"jobs": [{"key": "history", "enabled": True, "triggerable": True}]})
+    )
+    assert request_snapshot(str(jobs_dir), by="alice") is True
+    [req] = list((jobs_dir / "requests").glob("*.json"))
+    assert _json.loads(req.read_text()) == {"job": "history", "mode": "run", "by": "alice"}
+    assert request_snapshot("", by="alice") is False

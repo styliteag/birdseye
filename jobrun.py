@@ -36,7 +36,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 DEFAULT_DIR = "/var/lib/birdseye/jobs"
-DEFAULT_TRIGGERS = "cleanup,maintenance"
+DEFAULT_TRIGGERS = "cleanup,maintenance,history"
 SKIPPED = 75  # EX_TEMPFAIL: another run of the same job holds the lock
 MODES = ("run", "dry-run")
 # Jobs whose script takes a dry-run flag; only these offer "dry-run" to the UI.

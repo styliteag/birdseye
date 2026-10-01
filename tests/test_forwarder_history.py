@@ -34,3 +34,29 @@ def test_trigger_inert_without_history_job(forwarder, monkeypatch, tmp_path):
     t = forwarder._history_trigger(tmp_path)  # no registry.json: job unknown
     t.note([{"activity_code": "group.update"}])
     assert t.tick() == "disabled" and t.due is None
+
+
+def test_wait_fires_trigger_on_time_not_at_next_poll(forwarder, monkeypatch):
+    from change_trigger import ChangeTrigger
+
+    now = [0.0]
+    started = []
+    monkeypatch.setattr(forwarder.time, "time", lambda: now[0])
+    monkeypatch.setattr(forwarder.time, "sleep", lambda s: now.__setitem__(0, now[0] + s))
+    t = ChangeTrigger(
+        "history",
+        settle_s=15,
+        start=lambda j, tr: started.append(now[0]) or "started",
+        clock=lambda: now[0],
+    )
+    t.note([{"activity_code": "group.update"}])
+    forwarder._wait(60, t)
+    assert started == [15.0] and now[0] == 60.0
+
+
+def test_wait_without_trigger_just_sleeps(forwarder, monkeypatch):
+    now = [0.0]
+    monkeypatch.setattr(forwarder.time, "time", lambda: now[0])
+    monkeypatch.setattr(forwarder.time, "sleep", lambda s: now.__setitem__(0, now[0] + s))
+    forwarder._wait(60, None)
+    assert now[0] == 60.0

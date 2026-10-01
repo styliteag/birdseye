@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   update (`GET /api/instance/version`, cached 10 minutes).
 
 ### Changed
+- Config history snapshots follow changes faster: a save in birdseye-web
+  requests one right away (seconds; `history` is now in the default
+  `JOB_TRIGGERS`), the forwarder fires on time instead of at its next poll,
+  and `HISTORY_SETTLE_SECONDS` defaults to 15 instead of 60 – changes made
+  elsewhere show up after about 15–75 s. The History notice polls every 5 s.
 - birdseye-web shows times in the viewer's own time zone (audit log, config
   history, snapshot notice, setup key expiry, Jobs page) instead of UTC. The
   UTC time stays as tooltip and as the text without JavaScript.

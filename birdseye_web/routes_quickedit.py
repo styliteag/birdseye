@@ -15,8 +15,8 @@ from fastapi.responses import Response
 
 from birdseye_web.context import (
     TEMPLATES,
+    config_changed,
     csrf_protect,
-    ctx,
     error_message,
     log_change,
     snapshot,
@@ -93,7 +93,7 @@ async def quick_allow(
     except NetBirdError as exc:
         return _render(request, snap, error=error_message(exc))
     log_change(s, "create policy (matrix)", None, body)
-    ctx(request).cache.invalidate()
+    config_changed(request, s)
     return _done(request, snap, f"Created policy “{body['name']}” ({created.get('id', '')}).")
 
 
@@ -148,6 +148,6 @@ async def quick_revoke(
         json.dumps({"rule": form.get("rule_id"), "target": form.get("target")}),
         change.method,
     )
-    ctx(request).cache.invalidate()
+    config_changed(request, s)
     verb = "Deleted" if change.method == "DELETE" else "Updated"
     return _done(request, snap, f"{verb} policy “{current.get('name', pid)}”.")

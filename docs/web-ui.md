@@ -172,7 +172,7 @@ The `birdseye` container writes, under `/var/lib/birdseye/jobs`:
 A button in the UI only drops a small request file (`requests/*.json`: job
 name, mode, who). A runner inside the `birdseye` container picks it up within
 ~3 seconds and starts the job **only if** it is enabled and listed in that
-container's `JOB_TRIGGERS` (default `cleanup,maintenance`). The web container
+container's `JOB_TRIGGERS` (default `cleanup,maintenance,history`). The web container
 never sends a command line, and cannot widen the list.
 
 **birdseye service** — nothing to add if its state directory is already a
@@ -180,7 +180,7 @@ bind mount (`./data/birdseye:/var/lib/birdseye`). Optional:
 
 ```yaml
     environment:
-      JOB_TRIGGERS: cleanup,maintenance   # jobs the UI may start; empty = none
+      JOB_TRIGGERS: cleanup,maintenance,history   # jobs the UI may start; empty = none
 ```
 
 **birdseye-web service** — mount the jobs directory read-only, and only its
@@ -248,10 +248,17 @@ so the snapshot sees the whole account):
       # HISTORY_EMAIL_TO: ops@example.com  # failure mail (else BACKUP_EMAIL_TO, SMTP_TO)
 ```
 
-Besides the schedule, the audit-event forwarder starts a snapshot about a
-minute after each configuration change, wherever it was made (birdseye-web,
-NetBird dashboard, CLI, API): `HISTORY_ON_CHANGE=1` (default),
-`HISTORY_SETTLE_SECONDS=60`. Peer logins and similar noise
+Besides the schedule, snapshots follow changes:
+
+- A save in birdseye-web asks for one right away (via the Jobs request
+  directory, so `history` must be in `JOB_TRIGGERS`, which it is by default).
+  It is there within seconds.
+- The audit-event forwarder sees every other change (NetBird dashboard, CLI,
+  API) at its next poll (`POLL_INTERVAL`, default 60 s) and snapshots
+  `HISTORY_SETTLE_SECONDS` (default 15) after the last change of a burst:
+  about 15–75 s. `HISTORY_ON_CHANGE=0` turns this off.
+
+Peer logins and similar noise
 (`HISTORY_TRIGGER_EXCLUDE`, default `*login*`) do not count. A run whose
 configuration equals the newest snapshot writes nothing (`--force` writes
 anyway), so an hourly schedule does not fill the list with copies.

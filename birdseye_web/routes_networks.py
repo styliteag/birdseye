@@ -18,8 +18,8 @@ from starlette.datastructures import FormData
 from birdseye_web.context import (
     OBJECT_ID,
     TEMPLATES,
+    config_changed,
     csrf_protect,
-    ctx,
     current_session,
     error_message,
     log_change,
@@ -59,8 +59,8 @@ def _delta(request, snap, delta):
     )
 
 
-def _done(request: Request, url: str) -> Response:
-    ctx(request).cache.invalidate()
+def _done(request: Request, s: Session, url: str) -> Response:
+    config_changed(request, s)
     return RedirectResponse(url, status_code=303)
 
 
@@ -130,7 +130,7 @@ async def network_create(
     except (PayloadError, NetBirdError) as exc:
         return _network_page(request, s, snap, None, error_message(exc), values, 400)
     log_change(s, "create network", None, body)
-    return _done(request, f"/networks/{created['id']}?saved=1")
+    return _done(request, s, f"/networks/{created['id']}?saved=1")
 
 
 @router.get("/networks/{nid}")
@@ -168,7 +168,7 @@ async def network_update(
             log_change(s, f"update network {nid}", before, body)
     except (PayloadError, NetBirdError) as exc:
         return _network_page(request, s, snap, net, error_message(exc), values, 400)
-    return _done(request, f"/networks/{nid}?saved=1")
+    return _done(request, s, f"/networks/{nid}?saved=1")
 
 
 @router.post("/networks/{nid}/delete-preview")
@@ -198,7 +198,7 @@ async def network_delete(
     except NetBirdError as exc:
         return _network_page(request, s, snap, net, error_message(exc), status=400)
     log_change(s, f"delete network {nid}", net.name, None)
-    return _done(request, "/networks?deleted=1")
+    return _done(request, s, "/networks?deleted=1")
 
 
 # --- resources -------------------------------------------------------------------------
@@ -322,7 +322,7 @@ async def resource_create(
     except (PayloadError, NetBirdError) as exc:
         return _resource_page(request, s, snap, net, None, error_message(exc), values, 400)
     log_change(s, f"create resource in network {nid}", None, body)
-    return _done(request, f"/networks/{nid}/resources/{created['id']}?saved=1")
+    return _done(request, s, f"/networks/{nid}/resources/{created['id']}?saved=1")
 
 
 @router.post("/networks/{nid}/resources/preview")
@@ -395,7 +395,7 @@ async def resource_update(
             log_change(s, f"update resource {rid}", before, body)
     except (PayloadError, NetBirdError) as exc:
         return _resource_page(request, s, snap, net, res, error_message(exc), values, 400)
-    return _done(request, f"/networks/{nid}/resources/{rid}?saved=1")
+    return _done(request, s, f"/networks/{nid}/resources/{rid}?saved=1")
 
 
 @router.post("/networks/{nid}/resources/{rid}/preview")
@@ -440,7 +440,7 @@ async def resource_delete(
     except NetBirdError as exc:
         return _resource_page(request, s, snap, net, res, error_message(exc), status=400)
     log_change(s, f"delete resource {rid}", res.name, None)
-    return _done(request, f"/networks/{nid}?deleted=1")
+    return _done(request, s, f"/networks/{nid}?deleted=1")
 
 
 # --- routers ---------------------------------------------------------------------------
@@ -537,7 +537,7 @@ async def router_create(
     except (PayloadError, NetBirdError) as exc:
         return _router_page(request, s, snap, net, None, error_message(exc), values, 400)
     log_change(s, f"create router in network {nid}", None, body)
-    return _done(request, f"/networks/{nid}?saved=1")
+    return _done(request, s, f"/networks/{nid}?saved=1")
 
 
 @router.get("/networks/{nid}/routers/{rtid}")
@@ -577,7 +577,7 @@ async def router_update(
             log_change(s, f"update router {rtid}", before, body)
     except (PayloadError, NetBirdError) as exc:
         return _router_page(request, s, snap, net, rt, error_message(exc), values, 400)
-    return _done(request, f"/networks/{nid}?saved=1")
+    return _done(request, s, f"/networks/{nid}?saved=1")
 
 
 @router.post("/networks/{nid}/routers/{rtid}/delete")
@@ -597,4 +597,4 @@ async def router_delete(
     except NetBirdError as exc:
         return _router_page(request, s, snap, net, rt, error_message(exc), status=400)
     log_change(s, f"delete router {rtid}", {"peer": rt.peer, "peer_groups": rt.peer_groups}, None)
-    return _done(request, f"/networks/{nid}?deleted=1")
+    return _done(request, s, f"/networks/{nid}?deleted=1")

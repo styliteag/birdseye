@@ -227,7 +227,7 @@ All knobs are env vars. Full list with defaults in
 | `CRON_CONFIG_HISTORY` | _(empty = disabled)_ | Schedule for `config_history.py`: a dated JSON snapshot of the configuration under `$JOBS_DIR/history` for birdseye-web's History page (typical: `5 * * * *`). Needs `NB_ADMIN_API_KEY` |
 | `HISTORY_KEEP_DAYS` | `90` | Config history snapshots older than this are deleted (the newest two are always kept) |
 | `HISTORY_ON_CHANGE` | `1` | The audit-event forwarder starts a config history snapshot after each configuration change (only when `CRON_CONFIG_HISTORY` is set). `0` = schedule only |
-| `HISTORY_SETTLE_SECONDS` | `60` | Wait this long after the last change before snapshotting, so a burst of edits gives one snapshot. `HISTORY_TRIGGER_INCLUDE` / `HISTORY_TRIGGER_EXCLUDE` (default `*` / `*login*`) pick which audit activity codes count |
+| `HISTORY_SETTLE_SECONDS` | `15` | Wait this long after the last change before snapshotting, so a burst of edits gives one snapshot. `HISTORY_TRIGGER_INCLUDE` / `HISTORY_TRIGGER_EXCLUDE` (default `*` / `*login*`) pick which audit activity codes count |
 | `HISTORY_EMAIL_TO` | _(falls back to `BACKUP_EMAIL_TO` → `SMTP_TO`)_ | Recipient(s) of a failed-snapshot mail |
 | `CHECKMK_SPOOL_DIR` | _(empty = disabled)_ | Mount your Checkmk agent's spool directory here and the unattended jobs write a local check. The filename carries a max age, so a cron that stops running goes stale on its own — something mail cannot tell you |
 | `TZ` | `UTC` | Timezone for displayed timestamps |

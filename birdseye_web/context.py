@@ -138,6 +138,16 @@ def log_change(s: Session, what: str, before: object, after: object) -> None:
     RECENT_WRITES.append(WriteRecord(s.user_id, what, datetime.now(UTC)))
 
 
+def config_changed(request: Request, s: Session) -> None:
+    """After every write: drop cached snapshots (everyone sees the change)
+    and ask for a config history snapshot."""
+    from birdseye_web.jobs import request_snapshot
+
+    c = ctx(request)
+    c.cache.invalidate()
+    request_snapshot(c.settings.jobs_dir, by=s.user_name or s.user_id)
+
+
 def error_message(exc: Exception) -> str:
     """User-facing text for a failed write."""
     if isinstance(exc, NetBirdError):

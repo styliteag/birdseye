@@ -17,6 +17,7 @@ from fastapi.responses import RedirectResponse, Response
 from birdseye_web.context import (
     OBJECT_ID,
     TEMPLATES,
+    config_changed,
     csrf_protect,
     ctx,
     current_session,
@@ -198,7 +199,7 @@ async def peer_update(
         await _update_groups(api, s, pid, add, rem)
     except (PayloadError, NetBirdError) as exc:
         return await _partial_failure(request, s, api, pid, exc)
-    ctx(request).cache.invalidate()
+    config_changed(request, s)
     return RedirectResponse(f"/peers/{pid}?saved=1", status_code=303)
 
 
@@ -268,5 +269,5 @@ async def peer_delete(
     except NetBirdError as exc:
         return _editor(request, s, snap, peer, error_message(exc), status=400)
     log_change(s, f"delete peer {pid}", peer.name, None)
-    ctx(request).cache.invalidate()
+    config_changed(request, s)
     return RedirectResponse("/peers?deleted=1", status_code=303)

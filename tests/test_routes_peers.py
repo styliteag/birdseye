@@ -160,3 +160,20 @@ def test_anomalies_link_peer_editor(client):
     login(client)
     html = client.get("/anomalies").text  # c1 is only in "All"
     assert 'href="/peers/c1">peer</a>' in html
+
+
+def test_saving_asks_for_a_history_snapshot(nb, tmp_path):
+    import json
+
+    (tmp_path / "requests").mkdir()
+    (tmp_path / "registry.json").write_text(
+        json.dumps({"jobs": [{"key": "history", "enabled": True, "triggerable": True}]})
+    )
+    oidc = FakeOIDC()
+    s = SETTINGS.__class__(**{**SETTINGS.__dict__, "jobs_dir": str(tmp_path)})
+    c = TestClient(create_app(s, oidc=oidc, api_factory=nb.api), follow_redirects=False)
+    c.oidc = oidc
+    login(c)
+    token = csrf(c, "/peers/a1")
+    c.post("/peers/a1", data={"csrf": token, "settings_field": "1", "name": "renamed"})
+    assert len(list((tmp_path / "requests").glob("*.json"))) == 1

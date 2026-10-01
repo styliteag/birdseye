@@ -15,6 +15,7 @@ from typing import Any
 
 # start(job, trigger) -> "started" | "busy" | "disabled"
 Starter = Callable[[str, str], str]
+BUSY_RETRY_S = 10.0
 
 
 class ChangeTrigger:
@@ -46,12 +47,16 @@ class ChangeTrigger:
         if any(self._counts(str(e.get("activity_code") or "")) for e in events):
             self.due = self._clock() + self.settle_s
 
+    def seconds_until_due(self) -> float | None:
+        if self.due is None:
+            return None
+        return max(0.0, self.due - self._clock())
+
     def tick(self) -> str:
-        """Start the job if it is due. A busy job is retried on the next tick,
+        """Start the job if it is due. A busy job is retried a little later,
         so a change made during a running snapshot still gets its own."""
         if self.due is None or self._clock() < self.due:
             return ""
         outcome = self._start(self.job, "audit")
-        if outcome != "busy":
-            self.due = None
+        self.due = self._clock() + BUSY_RETRY_S if outcome == "busy" else None
         return outcome
