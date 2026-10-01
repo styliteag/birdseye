@@ -61,7 +61,7 @@ _log = make_log("export_objects")
 # Endpoints exported on every run. Each is a GET against /api/<path>;
 # the response is dumped verbatim into <slug>.json inside the archive.
 # Order is informational — not a dependency.
-_ENDPOINTS: list[tuple[str, str]] = [
+ENDPOINTS: list[tuple[str, str]] = [
     ("peers", "peers"),
     ("groups", "groups"),
     ("policies", "policies"),
@@ -119,14 +119,14 @@ def _fetch_endpoint(client: APIClient, path: str) -> Any | None:
         return None
 
 
-def _dump_objects(client: APIClient, out_dir: Path) -> tuple[dict[str, dict[str, Any]], list[str]]:
+def dump_objects(client: APIClient, out_dir: Path) -> tuple[dict[str, dict[str, Any]], list[str]]:
     """Write one JSON file per endpoint into out_dir.
 
     Returns (manifest_summary, slugs_actually_written).
     """
     summary: dict[str, dict[str, Any]] = {}
     written: list[str] = []
-    for path, slug in _ENDPOINTS:
+    for path, slug in ENDPOINTS:
         data = _fetch_endpoint(client, path)
         if data is None:
             summary[slug] = {"path": path, "status": "skipped"}
@@ -146,7 +146,7 @@ def _dump_objects(client: APIClient, out_dir: Path) -> tuple[dict[str, dict[str,
     return summary, written
 
 
-def _write_manifest(out_dir: Path, summary: dict[str, dict[str, Any]], nb_url: str) -> None:
+def write_manifest(out_dir: Path, summary: dict[str, dict[str, Any]], nb_url: str) -> None:
     manifest = {
         "exported_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "nb_url": nb_url,
@@ -189,8 +189,8 @@ def main() -> int:
         tmp_path = Path(tmp)
         json_dir = tmp_path / "export"
         json_dir.mkdir()
-        _log(f"fetching {len(_ENDPOINTS)} endpoints from {env('NB_URL')}")
-        summary, written = _dump_objects(client, json_dir)
+        _log(f"fetching {len(ENDPOINTS)} endpoints from {env('NB_URL')}")
+        summary, written = dump_objects(client, json_dir)
         if not written:
             reason = (
                 "no endpoints returned data — check NB_ADMIN_API_KEY scope "
@@ -202,7 +202,7 @@ def main() -> int:
             send_mail(cfg, error_mail(cfg, subject, "NetBird API export", reason))
             return 1
 
-        _write_manifest(json_dir, summary, env("NB_URL"))
+        write_manifest(json_dir, summary, env("NB_URL"))
 
         ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         archive = tmp_path / f"netbirdexport-{label or 'export'}-{ts}.7z"

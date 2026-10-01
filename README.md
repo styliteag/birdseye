@@ -224,6 +224,9 @@ All knobs are env vars. Full list with defaults in
 | `CRON_CLONE_STANDBY` | _(empty = disabled)_ | Schedule for `clone_standby.py run` (typical: `17 */6 * * *`) |
 | `CRON_BACKUP_OFFSITE` | _(empty = disabled)_ | Schedule for `backup_offsite.py` (typical: `42 3 * * *`) |
 | `CRON_NETBIRD_MAINTENANCE` | _(empty = disabled)_ | Schedule for `netbird_maintenance.py` — attaches the posture check, then reconciles the ICMP companions (typical: `30 * * * *`) |
+| `CRON_CONFIG_HISTORY` | _(empty = disabled)_ | Schedule for `config_history.py`: a dated JSON snapshot of the configuration under `$JOBS_DIR/history` for birdseye-web's History page (typical: `5 * * * *`). Needs `NB_ADMIN_API_KEY` |
+| `HISTORY_KEEP_DAYS` | `90` | Config history snapshots older than this are deleted (the newest two are always kept) |
+| `HISTORY_EMAIL_TO` | _(falls back to `BACKUP_EMAIL_TO` → `SMTP_TO`)_ | Recipient(s) of a failed-snapshot mail |
 | `CHECKMK_SPOOL_DIR` | _(empty = disabled)_ | Mount your Checkmk agent's spool directory here and the unattended jobs write a local check. The filename carries a max age, so a cron that stops running goes stale on its own — something mail cannot tell you |
 | `TZ` | `UTC` | Timezone for displayed timestamps |
 

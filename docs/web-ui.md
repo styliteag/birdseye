@@ -22,6 +22,7 @@ It ships as its own image (`styliteag/birdseye-web`), separate from the
 | **Policies** | List with on/off switch; editor for multi-rule policies (groups or a single resource/peer as destination, `netbird-ssh`, ports and ranges, bidirectional, posture checks) with the same live effect preview. |
 | **Setup keys** | List with state badges (valid, expired, revoked, exhausted), usage, expiry, last use and auto-assigned groups. Create a key (name, type, expiry in days, usage limit, auto-groups, ephemeral): the key value is shown **once**, on the page right after creation, and is never logged or stored by birdseye. Edit auto-groups, revoke, delete revoked keys. Only shown to roles that may manage setup keys. |
 | **Audit** | NetBird's audit log (`/api/events/audit`, read live, not cached): newest first, 100 per page, filter by who, activity or category, target, date range and free text. IDs are shown as names; deleted objects by the name NetBird recorded. Each target links to its editor, and every editor (group, policy, user, peer, setup key, network, resource) has a *History* link to its own entries. Changes made through birdseye-web since its last restart are marked *birdseye* (same user, within 30 s, same object). Needs a role that may read events. |
+| **History** | Owners and admins: compare two configuration snapshots (policies, groups, posture checks, networks, users, setup keys, peers, routes, DNS, account settings) – added, removed and changed objects with the changed fields; runtime state such as online or last seen is ignored. Per object: every version with its changes, linked from the audit log. Restore one policy or group to an older version, with the access preview first; a deleted one is created again; a policy whose groups or posture checks no longer exist is not restored. Optional, see [Config history](#config-history-optional). |
 | **Jobs** | Status of the `birdseye` container's cron jobs and audit-event forwarder: last run, result, duration, history, log tail. Owners and admins can start selected jobs (by default `cleanup` and `maintenance`, both also as dry run). Optional, see [Jobs page](#jobs-page-optional). |
 | **Anomalies** | Configuration smells: rules that bypass groups, devices whose groups drifted from their user's defaults (linked to the user editor, where they can be fixed), peers inside resource groups, empty or missing groups in policies, resources nobody routes or reaches, unused groups, disabled policies. Housekeeping: peers with an expired login, waiting for approval, offline longer than `WEB_STALE_PEER_DAYS` or on an outdated client; setup keys that never expire, are reusable without limit, were never used, or expired without being revoked; users without a device; posture checks no policy uses. Each finding links to the editor that fixes it where there is one. `WEB_ANOMALY_IGNORE` hides findings about matching groups and is also applied to the counters. |
 
@@ -229,3 +230,34 @@ Every start is logged by both containers (`birdseye_web.audit` and
 - Object IDs are validated before they reach an API path.
 - Pending (not yet signed-in) sessions expire after 10 minutes and are capped.
 - Every write is logged as one `birdseye_web.audit` line: who, what, before → after.
+
+## Config history (optional)
+
+The History page reads configuration snapshots that the `birdseye`
+container writes into the same shared jobs directory as the Jobs page. The
+web container only reads them; it never fetches or writes snapshots itself.
+
+**birdseye service** — schedule the snapshot job (needs `NB_ADMIN_API_KEY`,
+so the snapshot sees the whole account):
+
+```yaml
+    environment:
+      CRON_CONFIG_HISTORY: "5 * * * *"   # hourly; empty = off
+      HISTORY_KEEP_DAYS: 90              # older snapshots are deleted, the newest two are kept
+      # HISTORY_EMAIL_TO: ops@example.com  # failure mail (else BACKUP_EMAIL_TO, SMTP_TO)
+```
+
+Each run writes `/var/lib/birdseye/jobs/history/<YYYYMMDDTHHMMSSZ>/` with one
+JSON file per endpoint (the same set `export_objects.py` mails) plus
+`manifest.json`. The files are **not encrypted**: they hold the account
+configuration including user e-mail addresses and setup key names (setup key
+values are removed before writing). Treat the jobs directory accordingly. A failed
+run mails and, with `CHECKMK_SPOOL_DIR`, turns the `birdseye_history` check
+CRIT. Try it with `docker compose exec birdseye /app/.venv/bin/python
+/app/config_history.py --dry-run`.
+
+**birdseye-web service** — nothing beyond the Jobs page mounts
+(`WEB_JOBS_DIR`); the History page appears for owners and admins. Because
+snapshots are taken with the admin key, users with other roles never see
+them. A restore writes with the signed-in user's own token, like every other
+change.

@@ -84,16 +84,16 @@ where possible, a link to the editor that fixes it.
 
 ## 7. Config history and rollback
 
-- [ ] Decide storage: snapshots written by the birdseye container
+- [x] Decide storage: snapshots written by the birdseye container
       (`export_objects.py` as a cron job into the shared jobs dir) and read
       by the web side — keeps the "web runs nothing itself" split
-- [ ] Format: one JSON per object type per run, plus manifest; retention setting
-- [ ] Pure `history.py`: diff two snapshots per object (added/removed/changed
+- [x] Format: one JSON per object type per run, plus manifest; retention setting
+- [x] Pure `history.py`: diff two snapshots per object (added/removed/changed
       fields), tested
-- [ ] `routes_history.py` + `history.html`: pick two dates, show diff grouped
+- [x] `routes_history.py` + `history.html`: pick two dates, show diff grouped
       by object type; per-object history from item 2 links here
-- [ ] Restore a single policy or group from a snapshot: build payload from old
+- [x] Restore a single policy or group from a snapshot: build payload from old
       version, preview access delta against current state, confirm, write
-- [ ] Handle restore of deleted objects (create) versus changed (update);
+- [x] Handle restore of deleted objects (create) versus changed (update);
       referenced groups/posture checks that no longer exist → block with message
-- [ ] Docs: setup of the snapshot job, env vars, CHANGELOG
+- [x] Docs: setup of the snapshot job, env vars, CHANGELOG

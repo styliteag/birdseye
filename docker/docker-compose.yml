@@ -62,6 +62,10 @@ services:
       CRON_CLONE_STANDBY: ${CRON_CLONE_STANDBY:-}
       CRON_BACKUP_OFFSITE: ${CRON_BACKUP_OFFSITE:-}
       CRON_NETBIRD_MAINTENANCE: ${CRON_NETBIRD_MAINTENANCE:-}
+      # Config history for birdseye-web (needs NB_ADMIN_API_KEY), e.g. "5 * * * *"
+      CRON_CONFIG_HISTORY: ${CRON_CONFIG_HISTORY:-}
+      HISTORY_KEEP_DAYS: ${HISTORY_KEEP_DAYS:-90}
+      HISTORY_EMAIL_TO: ${HISTORY_EMAIL_TO:-}
 
       # Volume backup (mount NetBird volumes read-only under /backup, see below)
       BACKUP_PATHS: ${BACKUP_PATHS:-}

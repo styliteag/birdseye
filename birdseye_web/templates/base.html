@@ -25,6 +25,7 @@
       {% if session.can('setup_keys', 'read') or session.is_admin %}<a href="/setup-keys" {% if p.startswith('/setup-keys') %}aria-current="page"{% endif %}>Setup keys</a>{% endif %}
       <a href="/anomalies" {% if p.startswith('/anomalies') %}aria-current="page"{% endif %}>Anomalies</a>
       <a href="/audit" {% if p.startswith('/audit') %}aria-current="page"{% endif %}>Audit</a>
+      {% if session.is_admin %}<a href="/history" {% if p.startswith('/history') %}aria-current="page"{% endif %}>History</a>{% endif %}
       <a href="/jobs" {% if p.startswith('/jobs') %}aria-current="page"{% endif %}>Jobs</a>
     </nav>
     <div class="who">

@@ -1,0 +1,5 @@
+<table class="list fields">
+  {% for f, a, b in fields %}
+  <tr><td class="muted small">{{ f }}</td><td class="loss small"><code>{{ a|tojson if a is not none else '–' }}</code></td><td class="gain small"><code>{{ b|tojson if b is not none else '–' }}</code></td></tr>
+  {% endfor %}
+</table>

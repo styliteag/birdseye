@@ -40,7 +40,7 @@ DEFAULT_TRIGGERS = "cleanup,maintenance"
 SKIPPED = 75  # EX_TEMPFAIL: another run of the same job holds the lock
 MODES = ("run", "dry-run")
 # Jobs whose script takes a dry-run flag; only these offer "dry-run" to the UI.
-DRY_RUN_ARGS = {"cleanup": "--dry-run", "maintenance": "--dry-run"}
+DRY_RUN_ARGS = {"cleanup": "--dry-run", "maintenance": "--dry-run", "history": "--dry-run"}
 WRAPPER = "/app/cron_wrapper.sh"
 
 

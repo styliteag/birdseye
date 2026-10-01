@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ obj.name or oid }} at {{ stamp }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="/history">Config history</a> / <a href="/history/object/{{ oid }}">{{ obj.name or oid }}</a> /</p>
+<h1>{{ obj.name or oid }} <span class="count">{{ label }} · {{ stamp }}</span></h1>
+<div class="split">
+  <section class="card">
+    <h3>This version</h3>
+    <pre class="small">{{ obj|tojson(indent=2) }}</pre>
+  </section>
+  <div class="side">
+    <section class="card">
+      <h3>Restore</h3>
+      {% if plan is none %}
+        <p class="muted small">Only policies and groups can be restored here.</p>
+      {% elif plan.blocked %}
+        <div class="flash err">Cannot restore:
+          <ul>{% for p in plan.problems %}<li>{{ p }}</li>{% endfor %}</ul></div>
+      {% else %}
+        <p class="small">{% if exists %}Replaces the current {{ label|lower }} with this version.{% else %}It no longer exists and is created again (with a new ID).{% endif %}</p>
+        {% if plan.notes %}<ul class="small">{% for n in plan.notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+        <div hx-post="/history/{{ stamp }}/{{ oid }}/preview" hx-trigger="load"><p class="muted small">Computing the effect…</p></div>
+        <form method="post" action="/history/{{ stamp }}/{{ oid }}/restore">
+          <input type="hidden" name="csrf" value="{{ session.csrf }}">
+          <div class="actions"><button class="primary" data-confirm="Restore this version of “{{ obj.name or oid }}”?">Restore</button></div>
+        </form>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

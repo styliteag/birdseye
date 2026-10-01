@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}History of {{ oid }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="/history">Config history</a> /</p>
+<h1>{{ timeline[0].name if timeline else oid }} <span class="count">{{ labels[timeline[0].slug] if timeline else '' }}</span></h1>
+<p class="muted small"><a href="/audit?target={{ oid }}">Audit log entries</a>{% if timeline and timeline[0].slug in editors and timeline[0].event != 'deleted' %} · <a href="{{ editors[timeline[0].slug] }}{{ oid }}">Open editor</a>{% endif %}</p>
+{% for v in timeline %}
+<section class="card anomaly">
+  <strong>{{ v.stamp[:4] }}-{{ v.stamp[4:6] }}-{{ v.stamp[6:8] }} {{ v.stamp[9:11] }}:{{ v.stamp[11:13] }} UTC</strong>
+  <span class="pill {{ 'loss' if v.event == 'deleted' else '' }}">{{ v.event }}</span>
+  {% if v.event != 'deleted' and v.slug in restorable %}<a class="small" href="/history/{{ v.stamp }}/{{ oid }}">view / restore this version</a>{% endif %}
+  {% if v.fields %}{% with fields = v.fields %}{% include "_history_fields.html" %}{% endwith %}{% endif %}
+</section>
+{% else %}
+<div class="card"><p class="muted">This object is in no snapshot.</p></div>
+{% endfor %}
+{% endblock %}

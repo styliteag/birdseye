@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Config history{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Config history <span class="count">{{ snaps|length }} snapshots</span></h1></div>
+{% if snaps|length < 2 %}
+  <div class="card"><p class="muted">At least two snapshots are needed for a comparison. The <code>config_history.py</code> job writes one per run.</p></div>
+{% else %}
+<form class="filter-bar" method="get" action="/history">
+  <label class="small">from <select name="from">{% for x in snaps %}<option value="{{ x.stamp }}" {% if x.stamp == old %}selected{% endif %}>{{ x.at.strftime('%Y-%m-%d %H:%M') }} UTC</option>{% endfor %}</select></label>
+  <label class="small">to <select name="to">{% for x in snaps %}<option value="{{ x.stamp }}" {% if x.stamp == new %}selected{% endif %}>{{ x.at.strftime('%Y-%m-%d %H:%M') }} UTC</option>{% endfor %}</select></label>
+  <button>Compare</button>
+</form>
+<p class="muted small">Configuration only: online state, last seen, client versions and usage counters are ignored.</p>
+{% for d in diffs %}
+<section class="card anomaly">
+  <details open>
+    <summary><strong>{{ labels[d.slug] }}</strong> <span class="count">{{ d.changes }}</span></summary>
+    <table class="list">
+    {% for oid, name in d.added %}
+      <tr><td><span class="pill gain">added</span></td><td>{% if d.slug in editors %}<a href="{{ editors[d.slug] }}{{ oid }}">{{ name }}</a>{% else %}{{ name }}{% endif %}</td>
+        <td class="num"><a class="small" href="/history/object/{{ oid }}">history</a></td></tr>
+    {% endfor %}
+    {% for oid, name in d.removed %}
+      <tr><td><span class="pill loss">removed</span></td><td>{{ name }}</td>
+        <td class="num">{% if d.slug in restorable %}<a class="small" href="/history/{{ old }}/{{ oid }}">restore…</a> · {% endif %}<a class="small" href="/history/object/{{ oid }}">history</a></td></tr>
+    {% endfor %}
+    {% for c in d.changed %}
+      <tr><td><span class="pill">changed</span></td>
+        <td>{% if d.slug in editors %}<a href="{{ editors[d.slug] }}{{ c.id }}">{{ c.name }}</a>{% else %}{{ c.name }}{% endif %}
+          {% with fields = c.fields %}{% include "_history_fields.html" %}{% endwith %}</td>
+        <td class="num">{% if d.slug in restorable %}<a class="small" href="/history/{{ old }}/{{ c.id }}">restore old…</a> · {% endif %}<a class="small" href="/history/object/{{ c.id }}">history</a></td></tr>
+    {% endfor %}
+    </table>
+  </details>
+</section>
+{% else %}
+<div class="card"><p>No configuration change between these two snapshots.</p></div>
+{% endfor %}
+{% endif %}
+{% endblock %}

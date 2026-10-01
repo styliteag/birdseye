@@ -8,7 +8,8 @@
     <td>{{ r.who }}{% if r.ours %} <span class="pill" title="Made through birdseye-web">birdseye</span>{% endif %}</td>
     <td>{{ r.e.activity }} <span class="muted small">{{ r.e.activity_code }}</span></td>
     <td>{% if r.target[1] %}<a href="{{ r.target[1] }}">{{ r.target[0] }}</a>{% else %}{{ r.target[0] }}{% endif %}
-      {% if r.e.target_id %} <a class="small muted" href="/audit?target={{ r.e.target_id }}" title="History of this object">⟲</a>{% endif %}</td>
+      {% if r.e.target_id %} <a class="small muted" href="/audit?target={{ r.e.target_id|urlencode }}" title="Audit entries of this object">⟲</a>
+        {% if session.is_admin %}<a class="small muted" href="/history/object/{{ r.e.target_id|urlencode }}" title="Config versions of this object">versions</a>{% endif %}{% endif %}</td>
     <td class="small muted">{% for k, v in r.e.meta %}{{ k }}={{ v }}{% if not loop.last %} · {% endif %}{% endfor %}</td>
   </tr>
   {% else %}

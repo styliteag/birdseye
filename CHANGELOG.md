@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   access, and the peer's effective access in and out. Peers link to their
   editor from the matrix, reachability, the cell popover, the user editor and
   the anomalies page.
+- **Config history**: `config_history.py` (cron `CRON_CONFIG_HISTORY`,
+  retention `HISTORY_KEEP_DAYS`, default 90) writes a dated JSON snapshot of
+  the configuration into the shared jobs directory. birdseye-web's
+  **History** page (owners and admins) compares two snapshots per object
+  type, shows each object's versions, and restores a single policy or group
+  (`PUT`, or `POST` when it was deleted) after an access preview; a policy
+  whose groups or posture checks are gone is not restored.
 - birdseye-web **audit log** (`/audit`): NetBird's audit events with
   filters (initiator, activity or category, target, date range, free text),
   paging, names instead of IDs (deleted objects by their recorded name) and
@@ -45,6 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Hidden for roles that may not manage setup keys.
 
 ### Changed
+- `export_objects.py`: endpoint list and dump helpers are public
+  (`ENDPOINTS`, `dump_objects`, `write_manifest`) so `config_history.py`
+  reuses them.
 - Anomalies: the severity counters respect `WEB_ANOMALY_IGNORE` like the list.
 
 ## [0.8.1] - 2026-10-01

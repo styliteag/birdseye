@@ -21,7 +21,8 @@ set -euo pipefail
     CLONE_KEEP_SNAPSHOTS CLONE_FAILOVER_TARGET CLONE_EMAIL_TO \
     OFFSITE_SSH_HOST OFFSITE_SSH_PORT OFFSITE_SSH_KEY OFFSITE_SSH_KNOWN_HOSTS OFFSITE_SSH_STRICT \
     OFFSITE_REMOTE_DIR OFFSITE_PATHS OFFSITE_DB_PATHS OFFSITE_BASE_DIR OFFSITE_EXCLUDE \
-    OFFSITE_PREFIX OFFSITE_KEEP OFFSITE_WORK_DIR OFFSITE_EMAIL_TO; do
+    OFFSITE_PREFIX OFFSITE_KEEP OFFSITE_WORK_DIR OFFSITE_EMAIL_TO \
+    HISTORY_DIR HISTORY_KEEP_DAYS HISTORY_EMAIL_TO; do
     if [ -n "${!var:-}" ]; then
       printf '%s=%q\n' "$var" "${!var}"
     fi
@@ -163,6 +164,19 @@ if [ -n "${CRON_BACKUP_OFFSITE:-}" ]; then
   fi
 else
   job_off backup-offsite "backup-offsite" "CRON_BACKUP_OFFSITE not set"
+fi
+
+# --- config history: dated JSON snapshots for birdseye-web's History page ------
+if [ -n "${CRON_CONFIG_HISTORY:-}" ]; then
+  gaps=$(missing NB_URL NB_ADMIN_API_KEY)
+  if [ -z "$gaps" ]; then
+    add_job history "$CRON_CONFIG_HISTORY" "/app/.venv/bin/python /app/config_history.py" "config history"
+  else
+    echo "[entrypoint] CRON_CONFIG_HISTORY set but incomplete — history cron disabled; need:$gaps" >&2
+    job_off history "config history" "need:$gaps"
+  fi
+else
+  job_off history "config history" "CRON_CONFIG_HISTORY not set"
 fi
 
 if [ ${#JOBS[@]} -gt 0 ]; then

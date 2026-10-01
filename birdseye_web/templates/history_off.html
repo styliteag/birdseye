@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Config history{% endblock %}
+{% block content %}
+<div class="card narrow-card">
+  <h1>Config history is not set up</h1>
+  <p>It needs the shared jobs directory (<code>WEB_JOBS_DIR</code>) and the <code>config_history.py</code> job in the birdseye container (<code>CRON_CONFIG_HISTORY</code>). See <em>docs/web-ui.md</em>.</p>
+</div>
+{% endblock %}
