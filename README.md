@@ -1,68 +1,57 @@
 # birdseye
 
-Bird's-eye view of a self-hosted [NetBird](https://netbird.io) deployment:
-a long-running audit-event forwarder plus a handful of operator scripts,
-packaged as a single Docker image you can run alongside your existing
-NetBird `docker-compose` stack.
+Operations toolkit for a **self-hosted [NetBird](https://netbird.io)**:
+see who can reach what, hear about every config change, keep backups and a
+standby you can fail over to.
 
-> Targets **self-hosted** NetBird (not NetBird Cloud). Uses the unofficial
+## TL;DR
+
+- **Access matrix web UI** — who may reach whom, which policy allows it,
+  what an edit would change *before* you save it. Sign in with your NetBird
+  account; no API key.
+- **Audit alerts** — NetBird's audit events forwarded to Mattermost, email
+  and stdout, with per-sink filters and no loss across restarts.
+- **Housekeeping on cron** — delete stale ephemeral peers, attach posture
+  checks, keep ICMP companion policies in step.
+- **Backups and failover** — weekly encrypted backup by mail, dated archives
+  over ssh, and a standby clone that is test-started on every run.
+
+Two Docker images, run next to your existing NetBird `docker compose` stack:
+`birdseye` (forwarder + jobs) and `birdseye-web` (UI). Use either or both.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/matrix-dark.png">
+  <img alt="birdseye-web access matrix" src="docs/screenshots/matrix-light.png">
+</picture>
+
+> Self-hosted NetBird only, not NetBird Cloud. Uses the unofficial
 > [`netbird`](https://pypi.org/project/netbird/) PyPI SDK
 > (community-maintained, not affiliated with NetBird).
 
-## What it does
+## What's in the box
 
-The `birdseye` container polls `/api/events/audit` on your NetBird
-management API and fans matching events out to three sinks:
+| Image | Part | Default | Details |
+|---|---|---|---|
+| `birdseye-web` | Matrix, editors with preview, reachability, anomalies, audit log, config history | — | [Web UI](#web-ui-birdseye-web) |
+| `birdseye` | Audit-event forwarder (stdout, Mattermost, email) | on | [Audit-event forwarder](#audit-event-forwarder) |
+| `birdseye` | Stale ephemeral peer cleanup | every 15 min | [Configuration](#configuration-reference) |
+| `birdseye` | Weekly backup: volume snapshot + JSON config export, encrypted, by mail | off | [Weekly backup](#weekly-backup) |
+| `birdseye` | Posture check and ping-companion reconciler | off | [Conventions](#keeping-the-accounts-conventions-in-step) |
+| `birdseye` | Config history snapshots (feeds the web UI's History page) | off | [Configuration](#configuration-reference) |
+| `birdseye` | Standby clone with failover drill; offsite archive over ssh | off | [Replication](#replication-and-off-host-copies) |
+| `birdseye` | One-shot operator scripts (`list_policies`, `setup_keys`, …) | — | [What's in the image](#whats-in-the-image) |
 
-| Sink         | Format                     | Toggle                              |
-|--------------|----------------------------|-------------------------------------|
-| **stdout**   | One line per event         | always on (read with `docker logs`) |
-| **Mattermost** | Compact markdown via incoming webhook, one message per poll | `MATTERMOST_WEBHOOK_URL` empty → disabled |
-| **Email**    | Plain text via SMTP        | `EMAIL_MODE=off \| immediate \| digest` |
-
-It also runs `cleanup_ephemeral.py` on a cron schedule (default every
-15 min) to delete stale ephemeral peers that NetBird's built-in cleanup
-ticker sometimes misses, and an optional weekly
-[backup](#weekly-backup) that mails two encrypted 7z archives: a
-volume snapshot for byte-identical restore, and an API config export
-in readable JSON.
-
-A second, independent image, **`birdseye-web`**, is a web UI that shows
-*who can reach what* as a matrix and lets you edit groups and policies
-with a preview of the effect — signed in with your own NetBird account.
-See [Web UI](#web-ui-birdseye-web).
-
-Two further optional jobs copy the deployment somewhere else — a
-database clone onto a standby you can fail over to, and a dated config
-archive over ssh. See
-[Replication and off-host copies](#replication-and-off-host-copies).
-
-Highlights:
-
-- **No event loss across restarts** — `last_id` persisted to a named
-  volume, resumes exactly where it left off.
-- **Bounded catch-up** — if the container's been down for a while,
-  `MAX_CATCHUP` (default 200) caps how many backlog events get
-  forwarded to Mattermost/email so a 3-day outage doesn't flood your
-  channel.
-- **Self-alert on extended API outage** — if the NetBird API is
-  unreachable for more than `OUTAGE_ALERT_MINUTES` (default 10), the
-  forwarder posts a `🚨 API unreachable` message to Mattermost (which
-  usually lives on a different host) and a recovery message when
-  polling resumes.
-- **Per-sink filters** — each sink takes a comma-separated list of
-  `fnmatch` globs over `activity_code`. Defaults: stdout/Mattermost see
-  everything, email is curated to config-change events
-  (`policy.*,user.*,setupkey.*,personalaccesstoken.*,account.*`).
+Every optional job is configured through env vars and stays off until its
+inputs are set. Unattended jobs alert by mail and, optionally, through a
+Checkmk local check.
 
 ## Quick start
 
-Pre-built images are published per-release to Docker Hub and GHCR:
+Images are published per release to Docker Hub and GHCR:
+`styliteag/birdseye`, `styliteag/birdseye-web`
+(also `ghcr.io/styliteag/…`).
 
-- `styliteag/birdseye:latest`
-- `ghcr.io/styliteag/birdseye:latest`
-
-Clone the repo for the compose file and env template, then:
+**Forwarder and jobs:**
 
 ```bash
 cd docker/
@@ -77,15 +66,20 @@ Once running you should see `[forwarder] first boot — seeded last_id=N,
 no backlog forwarded`. Trigger any audit event in NetBird (e.g. toggle a
 policy) to confirm the pipeline works.
 
+**Web UI:**
+
+```bash
+cd docker/web
+cp .env.example .env    # WEB_NB_URL, WEB_BASE_URL, WEB_SESSION_SECRET
+docker compose up -d
+```
+
+The web UI needs one change on the NetBird side: register its callback URL
+with the IdP. See [docs/web-ui.md](docs/web-ui.md).
+
 ## Web UI (birdseye-web)
 
-An access overview and editor for your NetBird account, shipped as its own
-image (`styliteag/birdseye-web`, `ghcr.io/styliteag/birdseye-web`):
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/matrix-dark.png">
-  <img alt="birdseye-web access matrix" src="docs/screenshots/matrix-light.png">
-</picture>
+An access overview and editor for your NetBird account:
 
 - **Matrix** — who may access whom: Group × Group, Peer × Peer,
   Group × Resource, Peer × Resource, User × Destination; filter by name,
@@ -113,15 +107,35 @@ There is no API key: you sign in with your NetBird account through
 NetBird's embedded IdP, and every call runs with your token, so NetBird
 enforces your role and its audit log shows you.
 
-```bash
-cd docker/web
-cp .env.example .env    # WEB_NB_URL, WEB_BASE_URL, WEB_SESSION_SECRET
-docker compose up -d
-```
+Full setup, reverse proxy, local trial and troubleshooting:
+**[docs/web-ui.md](docs/web-ui.md)**.
 
-One change on the NetBird side is required — the callback URL has to be
-registered with the IdP. Full setup, reverse proxy, local trial and
-troubleshooting: **[docs/web-ui.md](docs/web-ui.md)**.
+## Audit-event forwarder
+
+The `birdseye` container polls `/api/events/audit` on your NetBird
+management API and fans matching events out to three sinks:
+
+| Sink         | Format                     | Toggle                              |
+|--------------|----------------------------|-------------------------------------|
+| **stdout**   | One line per event         | always on (read with `docker logs`) |
+| **Mattermost** | Compact markdown via incoming webhook, one message per poll | `MATTERMOST_WEBHOOK_URL` empty → disabled |
+| **Email**    | Plain text via SMTP        | `EMAIL_MODE=off \| immediate \| digest` |
+
+- **No event loss across restarts** — `last_id` persisted to a named
+  volume, resumes exactly where it left off.
+- **Bounded catch-up** — if the container's been down for a while,
+  `MAX_CATCHUP` (default 200) caps how many backlog events get
+  forwarded to Mattermost/email so a 3-day outage doesn't flood your
+  channel.
+- **Self-alert on extended API outage** — if the NetBird API is
+  unreachable for more than `OUTAGE_ALERT_MINUTES` (default 10), the
+  forwarder posts a `🚨 API unreachable` message to Mattermost (which
+  usually lives on a different host) and a recovery message when
+  polling resumes.
+- **Per-sink filters** — each sink takes a comma-separated list of
+  `fnmatch` globs over `activity_code`. Defaults: stdout/Mattermost see
+  everything, email is curated to config-change events
+  (`policy.*,user.*,setupkey.*,personalaccesstoken.*,account.*`).
 
 ## Running alongside your self-hosted NetBird
 
