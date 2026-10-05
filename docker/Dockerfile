@@ -43,7 +43,7 @@ LABEL org.opencontainers.image.title="birdseye" \
       org.opencontainers.image.source="https://github.com/styliteag/birdseye" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${VCS_REF}" \
-      org.opencontainers.image.licenses="MIT"
+      org.opencontainers.image.licenses="AGPL-3.0-or-later"
 
 ENV NETBIRD_TOOLKIT_VERSION=${VERSION} \
     NETBIRD_TOOLKIT_REVISION=${VCS_REF}

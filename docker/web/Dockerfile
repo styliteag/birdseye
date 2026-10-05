@@ -36,7 +36,7 @@ LABEL org.opencontainers.image.title="birdseye-web" \
       org.opencontainers.image.source="https://github.com/styliteag/birdseye" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${VCS_REF}" \
-      org.opencontainers.image.licenses="MIT"
+      org.opencontainers.image.licenses="AGPL-3.0-or-later"
 
 ENV BIRDSEYE_VERSION=${VERSION} \
     BIRDSEYE_REVISION=${VCS_REF}

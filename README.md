@@ -646,4 +646,12 @@ need it, open an issue.
 
 ## License
 
-[MIT](LICENSE)
+Copyright (c) 2026 Stylite AG.
+
+birdseye is licensed under the [GNU Affero General Public License v3.0 or
+later](LICENSE) (`AGPL-3.0-or-later`). If you run a modified version as a
+network service – the web UI, for example – you must offer its users the
+source of your version.
+
+Releases up to and including 1.0.0 were published under the MIT License
+and remain available under it.
